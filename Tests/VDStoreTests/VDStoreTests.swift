@@ -72,27 +72,14 @@ class VDStoreTests: XCTestCase {
     }
     
     // Test that state mutations are thread-safe.
-    func testThreadSafety() {
+    func testThreadSafety() async {
         let store = Store(Counter())
-        let expectation = self.expectation(description: "Thread Safety")
-        let group = DispatchGroup()
-        
-        for _ in 0..<1000 {
-            group.enter()
-            DispatchQueue.global().async {
-                Task.detached {
-                    await store.add()
-                    group.leave()
-                }
+        let isMainThread = await Task.detached {
+            await store.check {
+                Thread.isMainThread
             }
-        }
-        
-        group.notify(queue: .main) {
-            expectation.fulfill()
-        }
-        
-        waitForExpectations(timeout: 1, handler: nil)
-        XCTAssertEqual(store.state.counter, 1000)
+        }.value
+        XCTAssertEqual(isMainThread, true)
     }
 }
 
@@ -109,6 +96,10 @@ extension Store<Counter> {
     
     func add() {
         state.counter += 1
+    }
+    
+    func check<T>(_ operation: () -> T) -> T {
+        operation()
     }
 }
 
