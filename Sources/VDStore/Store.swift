@@ -19,8 +19,12 @@ public struct Store<State> {
         get { self }
         set { self = newValue }
     }
-    
+
     public nonisolated init(wrappedValue state: State) {
+        self.init(state)
+    }
+
+    public nonisolated init(_ state: State) {
         let subject = CurrentValueSubject<State, Never>(state)
         self.init(
             state: Ref {
@@ -45,10 +49,9 @@ public struct Store<State> {
         state: Ref<State>,
         dependencies: StoreDependencies = StoreDependencies()
     ) {
-        let subject = RefPublisher(ref: state)
         self.init(
             state: state,
-            publisher: subject,
+            publisher: RefPublisher(ref: state),
             dependencies: dependencies
         )
     }

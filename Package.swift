@@ -17,10 +17,7 @@ let package = Package(
     dependencies: [
     ],
     targets: [
-        .target(
-            name: "VDStore",
-            dependencies: [
-            ]
-        )
+        .target(name: "VDStore"),
+        .testTarget(name: "VDStoreTests", dependencies: ["VDStore"]),
     ]
 )
