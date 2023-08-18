@@ -4,18 +4,21 @@
 import PackageDescription
 
 let package = Package(
-    name: "${NAME}",
+    name: "VDStore",
     platforms: [
         .iOS(.v13),
+        .macOS(.v10_15),
+        .tvOS(.v13),
+        .watchOS(.v6)
     ],
     products: [
-        .library(name: "${NAME}", targets: ["${NAME}"]),
+        .library(name: "VDStore", targets: ["VDStore"]),
     ],
     dependencies: [
     ],
     targets: [
         .target(
-            name: "${NAME}",
+            name: "VDStore",
             dependencies: [
             ]
         )
