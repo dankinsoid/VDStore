@@ -40,11 +40,12 @@ public struct Store<State> {
         self.init(state: state, publisher: publisher, dependencies: dependencies, values: [:])
     }
     
+    /// - Warning: This initializer creates a `Store` instance that can observe mutations called through this store or its scopes.
     public nonisolated init(
         state: Ref<State>,
         dependencies: StoreDependencies = StoreDependencies()
     ) {
-        let subject = PassthroughSubject<State, Never>()
+        let subject = RefPublisher(ref: state)
         self.init(
             state: state,
             publisher: subject,
