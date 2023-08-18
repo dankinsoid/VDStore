@@ -76,7 +76,7 @@ public struct Store<State> {
         )
     }
     
-    public func value<Dependency>(
+    public func property<Dependency>(
         _ keyPath: KeyPath<Store, Dependency>,
         _ value: Dependency
     ) -> Store {

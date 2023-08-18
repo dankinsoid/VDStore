@@ -58,9 +58,9 @@ class VDStoreTests: XCTestCase {
     // Test that computed properties in a Store extension return expected values based on the store’s state.
     func testComputedProperty() {
         let initialCounter = Counter(counter: 20)
-        let store = Store(initialCounter)
+        let store = Store(initialCounter).property(\.step, 2)
         
-        XCTAssertEqual(store.step, 1)
+        XCTAssertEqual(store.step, 2)
     }
     
     // Test that a Store can use a mock dependency correctly.
