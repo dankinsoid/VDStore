@@ -81,6 +81,43 @@ class VDStoreTests: XCTestCase {
         }.value
         XCTAssertEqual(isMainThread, true)
     }
+    
+    func testTasksStorage() async {
+        let store = Store(Counter())
+        let id = "id"
+        
+        // Test that a task is added to the tasks storage and removed when it completes.
+        var task = Task<Void, Never> {
+            try? await Task.sleep(nanoseconds: 1_000)
+        }
+        .store(in: store.dependencies.tasksStorage, id: id)
+        
+        XCTAssertEqual(store.dependencies.tasksStorage.count, 1)
+        await task.value
+        try? await Task.sleep(nanoseconds: 1)
+        XCTAssertEqual(store.dependencies.tasksStorage.count, 0)
+        
+        // Test that a task is added to the tasks storage and removed when it cancelled.
+        task = Task<Void, Never> {
+            try? await Task.sleep(nanoseconds: 1_000)
+        }
+        .store(in: store.dependencies.tasksStorage, id: id)
+        
+        XCTAssertEqual(store.dependencies.tasksStorage.count, 1)
+        store.dependencies.tasksStorage.cancel(id: id)
+        XCTAssertEqual(store.dependencies.tasksStorage.count, 0)
+        
+        // Test that a task is added to the tasks storage and removed when it cancelled.
+        task = Task<Void, Never> {
+            try? await Task.sleep(nanoseconds: 1_000)
+        }
+        .store(in: store.dependencies.tasksStorage, id: id)
+        XCTAssertEqual(store.dependencies.tasksStorage.count, 1)
+        task.cancel()
+        await task.value
+        try? await Task.sleep(nanoseconds: 1)
+        XCTAssertEqual(store.dependencies.tasksStorage.count, 0)
+    }
 }
 
 struct Counter: Equatable {

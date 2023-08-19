@@ -64,7 +64,7 @@ extension Store<Search> {
         if query.isEmpty {
             state.results = []
             state.weather = nil
-            dependencies.tasksStore.cancel(id: CancelID.location)
+            dependencies.tasksStorage.cancel(id: CancelID.location)
         }
     }
     
@@ -79,7 +79,7 @@ extension Store<Search> {
                 searchResponse(result: .failure(error))
             }
         }
-        .store(in: dependencies.tasksStore, id: CancelID.location)
+        .store(in: dependencies.tasksStorage, id: CancelID.location)
     }
     
     func searchResponse(result: Result<GeocodingSearch, Error>) {
@@ -101,7 +101,7 @@ extension Store<Search> {
                 forecastResponse(id: location.id, result: .failure(error))
             }
         }
-        .store(in: dependencies.tasksStore, id: CancelID.weather)
+        .store(in: dependencies.tasksStorage, id: CancelID.weather)
     }
     
     private enum CancelID { case location, weather }
