@@ -59,9 +59,7 @@ public struct ViewStore<State>: DynamicProperty {
             store.publisher
         }
         
-        init(
-            store: Store<State>
-        ) {
+        init(store: Store<State>) {
             self.store = store
         }
     }
@@ -102,7 +100,7 @@ public extension View {
         environment(\.storeDependencies, dependencies)
     }
     
-    func storeDependencies<D>(_ keyPath: WritableKeyPath<StoreDependencies, D>, _ value: D) -> some View {
+    func storeDependency<D>(_ keyPath: WritableKeyPath<StoreDependencies, D>, _ value: D) -> some View {
         transformEnvironment(\.storeDependencies) { deps in
             deps[keyPath: keyPath] = value
         }

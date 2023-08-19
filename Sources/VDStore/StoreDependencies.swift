@@ -30,4 +30,21 @@ public struct StoreDependencies {
         new.dependencies.merge(dependencies.dependencies) { _, new in new }
         return new
     }
+    
+    public func defaultFor<Value>(
+        live: Value,
+        test: Value? = nil,
+        preview: Value? = nil
+    ) -> Value {
+        if _isPreview {
+            return preview ?? test ?? live
+        } else if _XCTIsTesting {
+            return test ?? preview ?? live
+        } else {
+            return live
+        }
+    }
 }
+
+private let _XCTIsTesting: Bool = ProcessInfo.processInfo.environment.keys.contains("XCTestBundlePath")
+private let _isPreview: Bool = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"

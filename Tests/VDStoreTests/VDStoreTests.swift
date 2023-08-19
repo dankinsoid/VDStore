@@ -108,7 +108,6 @@ protocol SomeService: AnyObject {
 
 // Mock dependency for testing purposes
 class MockSomeService: SomeService {
-    // Override methods and properties as needed for testing
 }
 
 extension StoreDependencies {
