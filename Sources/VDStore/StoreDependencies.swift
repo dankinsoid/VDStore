@@ -36,6 +36,7 @@ public struct StoreDependencies {
         test: Value? = nil,
         preview: Value? = nil
     ) -> Value {
+        #if DEBUG
         if _isPreview {
             return preview ?? test ?? live
         } else if _XCTIsTesting {
@@ -43,6 +44,9 @@ public struct StoreDependencies {
         } else {
             return live
         }
+        #else
+        return live
+        #endif
     }
 }
 

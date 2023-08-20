@@ -9,7 +9,6 @@ class VDStoreTests: XCTestCase {
     func testInitialState() {
         let initialCounter = Counter(counter: 10)
         let store = Store(initialCounter)
-        
         XCTAssertEqual(store.state.counter, 10)
     }
     
