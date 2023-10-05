@@ -22,10 +22,24 @@ public struct Ref<State> {
         setter = set
     }
     
-    public func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Ref<ChildState> {
+    public func scope<ChildState>(
+        get childGet: @escaping (State) -> ChildState,
+        set childSet: @escaping (inout State, ChildState) -> Void
+    ) -> Ref<ChildState> {
         Ref<ChildState>(
-            get: { self.wrappedValue[keyPath: keyPath] },
-            set: { self.wrappedValue[keyPath: keyPath] = $0 }
+            get: { childGet(getter()) },
+            set: {
+                var state = getter()
+                childSet(&state, $0)
+                setter(state)
+            }
+        )
+    }
+
+    public func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Ref<ChildState> {
+        scope(
+            get: { $0[keyPath: keyPath] },
+            set: { $0[keyPath: keyPath] = $1 }
         )
     }
     

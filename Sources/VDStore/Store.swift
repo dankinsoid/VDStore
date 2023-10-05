@@ -7,7 +7,11 @@ public struct Store<State> {
     
     @Ref public var state: State
     public let publisher: AnyPublisher<State, Never>
-    public var dependencies: StoreDependencies
+    public var dependencies: StoreDependencies {
+        _dependencies.with(store: self)
+    }
+    
+    private var _dependencies: StoreDependencies
     private var values: [PartialKeyPath<Store>: Any]
     
     public var wrappedValue: State {
@@ -64,8 +68,19 @@ public struct Store<State> {
     ) where P.Output == State, P.Failure == Never {
         self._state = state
         self.publisher = publisher.eraseToAnyPublisher()
-        self.dependencies = dependencies
+        self._dependencies = dependencies
         self.values = values
+    }
+    
+    public func scope<ChildState>(
+        get getter: @escaping (State) -> ChildState,
+        set setter: @escaping (inout State, ChildState) -> Void
+    ) -> Store<ChildState> {
+        Store<ChildState>(
+            state: $state.scope(get: getter, set: setter),
+            publisher: publisher.map(getter),
+            dependencies: dependencies
+        )
     }
     
     public func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Store<ChildState> {
@@ -108,11 +123,53 @@ public struct Store<State> {
         )
     }
     
+    public func transformDependency(
+        _ transform: (inout StoreDependencies) -> Void
+    ) -> Store {
+        var dependencies = self.dependencies
+        transform(&dependencies)
+        return Store(
+            state: $state,
+            publisher: publisher,
+            dependencies: dependencies,
+            values: values
+        )
+    }
+    
     public func modify(_ modifier: (inout State) -> Void) {
         modifier(&state)
     }
     
     public subscript<Value>(_ keyPath: KeyPath<Store<State>, Value>) -> Value? {
         values[keyPath] as? Value
+    }
+}
+
+extension StoreDependencies {
+    
+    private var stores: [ObjectIdentifier: Any] {
+        get { self[\.stores] ?? [:] }
+        set { self[\.stores] = newValue }
+    }
+    
+    public func store<T>(
+        for type: T.Type,
+        defaultForLive live: @autoclosure () -> Store<T>,
+        test: @autoclosure () -> Store<T>? = nil,
+        preview: @autoclosure () -> Store<T>? = nil
+    ) -> Store<T> {
+        (stores[ObjectIdentifier(type)] as? Store<T>) ?? defaultFor(
+            live: live(),
+            test: test(),
+            preview: preview()
+        )
+    }
+    
+    public func with<T>(
+        store: Store<T>
+    ) -> StoreDependencies {
+        transform(\.stores) { stores in
+            stores[ObjectIdentifier(T.self)] = store
+        }
     }
 }

@@ -25,6 +25,16 @@ public struct StoreDependencies {
         return new
     }
     
+    
+    public func transform<Dependency>(
+        _ keyPath: KeyPath<StoreDependencies, Dependency>,
+        _ transform: (inout Dependency) -> Void
+    ) -> StoreDependencies {
+        var value = self[keyPath: keyPath]
+        transform(&value)
+        return with(keyPath, value)
+    }
+    
     public func merging(with dependencies: StoreDependencies) -> StoreDependencies {
         var new = self
         new.dependencies.merge(dependencies.dependencies) { _, new in new }
@@ -32,20 +42,20 @@ public struct StoreDependencies {
     }
     
     public func defaultFor<Value>(
-        live: Value,
-        test: Value? = nil,
-        preview: Value? = nil
+        live: @autoclosure () -> Value,
+        test: @autoclosure () -> Value? = nil,
+        preview: @autoclosure () -> Value? = nil
     ) -> Value {
         #if DEBUG
         if _isPreview {
-            return preview ?? test ?? live
+            return preview() ?? test() ?? live()
         } else if _XCTIsTesting {
-            return test ?? preview ?? live
+            return test() ?? preview() ?? live()
         } else {
-            return live
+            return live()
         }
         #else
-        return live
+        return live()
         #endif
     }
 }
