@@ -7,107 +7,6 @@ events are debounced for 300ms, and when you stop typing an API request is made 
 locations. Then tapping on a location will load weather.
 """
 
-// MARK: - Search feature domain
-
-struct Search: Equatable {
-
-	var results: [GeocodingSearch.Result] = []
-	var resultForecastRequestInFlight: GeocodingSearch.Result?
-	var searchQuery = ""
-	var weather: Weather?
-
-	struct Weather: Equatable {
-		var id: GeocodingSearch.Result.ID
-		var days: [Day]
-
-		struct Day: Equatable {
-			var date: Date
-			var temperatureMax: Double
-			var temperatureMaxUnit: String
-			var temperatureMin: Double
-			var temperatureMinUnit: String
-		}
-	}
-}
-
-enum TT {
-
-    @State static var ee: Int = 0
-}
-
-extension Store<Search> {
-
-    func testFunc(
-        _ id: GeocodingSearch.Result.ID
-    ) -> Int {
-        return 0
-    }
-}
-
-@Actions
-extension Store<Search> {
-
-	func forecastResponse(id: GeocodingSearch.Result.ID, result: Result<Forecast, Error>) {
-		switch result {
-		case .failure:
-			state.weather = nil
-			state.resultForecastRequestInFlight = nil
-		case let .success(forecast):
-			state.weather = State.Weather(
-				id: id,
-				days: forecast.daily.time.indices.map {
-					State.Weather.Day(
-						date: forecast.daily.time[$0],
-						temperatureMax: forecast.daily.temperatureMax[$0],
-						temperatureMaxUnit: forecast.dailyUnits.temperatureMax,
-						temperatureMin: forecast.daily.temperatureMin[$0],
-						temperatureMinUnit: forecast.dailyUnits.temperatureMin
-					)
-				}
-			)
-			state.resultForecastRequestInFlight = nil
-		}
-	}
-
-	func searchQueryChanged(query: String) {
-        state.searchQuery = query
-        if query.isEmpty {
-            state.results = []
-            state.weather = nil
-            cancel(Self.searchQueryChangeDebounced)
-        }
-	}
-
-	func searchQueryChangeDebounced() async {
-		guard !state.searchQuery.isEmpty else {
-			return
-		}
-        do {
-            try await searchResponse(result: .success(dependencies.weatherClient.search(state.searchQuery)))
-        } catch {
-            searchResponse(result: .failure(error))
-        }
-    }
-
-	func searchResponse(result: Result<GeocodingSearch, Error>) {
-		switch result {
-		case .failure:
-			state.results = []
-		case let .success(response):
-			state.results = response.results
-		}
-	}
-
-    func searchResultTapped(location: GeocodingSearch.Result) async {
-		state.resultForecastRequestInFlight = location
-       do {
-           try await forecastResponse(id: location.id, result: .success(dependencies.weatherClient.forecast(location)))
-       } catch {
-           forecastResponse(id: location.id, result: .failure(error))
-       }
-	}
-}
-
 // MARK: - Search feature view
 
 struct SearchView: View {
@@ -169,10 +68,7 @@ struct SearchView: View {
 			.navigationTitle("Search")
 		}
 		.task(id: state.searchQuery) {
-			do {
-				try await Task.sleep(nanoseconds: NSEC_PER_SEC / 3)
-				await $state.searchQueryChangeDebounced()
-			} catch {}
+            await $state.searchQueryChangeDebounced()
 		}
 	}
 
@@ -191,19 +87,6 @@ struct SearchView: View {
 			.padding(.leading, 16)
 		}
 	}
-}
-
-struct LoggerMiddleware: StoreMiddleware {
-    
-    func execute<State, Args, Res>(
-        _ args: Args,
-        context: Store<State>.Action<Args, Res>.Context,
-        dependencies: StoreDependencies,
-        next: (Args) -> Res
-    ) -> Res {
-        print("\(context.actionID) called from \(context.function)@\(context.file):\(context.line)")
-        return next(args)
-    }
 }
 
 // MARK: - Private helpers
@@ -229,6 +112,6 @@ private let dateFormatter: DateFormatter = {
 
 struct SearchView_Previews: PreviewProvider {
 	static var previews: some View {
-		SearchView(state: Search())
+		SearchView()
 	}
 }

@@ -154,7 +154,7 @@ extension Store {
             with: args,
             file: file,
             line: line,
-            from: file
+            from: function
         )
         .get()
     }
@@ -171,7 +171,7 @@ extension Store {
             with: args,
             file: file,
             line: line,
-            from: file
+            from: function
         )
         .value
     }
@@ -188,7 +188,7 @@ extension Store {
             with: args,
             file: file,
             line: line,
-            from: file
+            from: function
         )
         .value
     }
@@ -207,6 +207,6 @@ public struct StoreActionID: Hashable, CustomStringConvertible {
     }
 
     public var description: String {
-        "\(name)@\(fileID):\(line)"
+        "\(fileID):\(line) \(name)"
     }
 }

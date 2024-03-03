@@ -16,16 +16,16 @@ public struct StoreDependencies {
 	}
 
 	public func with<Dependency>(
-		_ keyPath: KeyPath<StoreDependencies, Dependency>,
+		_ keyPath: WritableKeyPath<StoreDependencies, Dependency>,
 		_ value: Dependency
 	) -> StoreDependencies {
 		var new = self
-		new[keyPath] = value
+        new[keyPath: keyPath] = value
 		return new
 	}
 
 	public func transform<Dependency>(
-		_ keyPath: KeyPath<StoreDependencies, Dependency>,
+		_ keyPath: WritableKeyPath<StoreDependencies, Dependency>,
 		_ transform: (inout Dependency) -> Void
 	) -> StoreDependencies {
 		var value = self[keyPath: keyPath]

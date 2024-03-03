@@ -125,7 +125,7 @@ private func expansion(
         default: break
         }
         
-        let lineNumber = context.location(of: node)?.line.description ?? "#line"
+        let lineNumber = context.location(of: funcDecl)?.line.description ?? "#line"
         let staticVarDecl = try VariableDeclSyntax("""
       static var \(raw: funcDecl.name.text): \(raw: varType) {
           Action(

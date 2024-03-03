@@ -86,7 +86,7 @@ public struct Store<State> {
 	}
 
 	public func dependency<Dependency>(
-		_ keyPath: KeyPath<StoreDependencies, Dependency>,
+		_ keyPath: WritableKeyPath<StoreDependencies, Dependency>,
 		_ value: Dependency
 	) -> Store {
 		transformDependency {
@@ -99,7 +99,7 @@ public struct Store<State> {
 	) -> Store {
 		Store(
 			publisher: _publisher,
-			dependencies: transform(dependencies),
+			dependencies: transform(_dependencies),
 			values: values
 		)
 	}
@@ -107,7 +107,7 @@ public struct Store<State> {
 	public func transformDependency(
 		_ transform: (inout StoreDependencies) -> Void
 	) -> Store {
-		var dependencies = dependencies
+		var dependencies = _dependencies
 		transform(&dependencies)
 		return Store(
 			publisher: _publisher,
@@ -144,11 +144,15 @@ public struct Store<State> {
 }
 
 public extension StoreDependencies {
-
-	private var stores: [ObjectIdentifier: Any] {
-		get { self[\.stores] ?? [:] }
-		set { self[\.stores] = newValue }
-	}
+    
+    private var stores: [ObjectIdentifier: Any] {
+        get { self[\.stores] ?? [:] }
+        set { self[\.stores] = newValue }
+    }
+    
+    func store<T>(for type: T.Type) -> Store<T>? {
+        stores[ObjectIdentifier(type)] as? Store<T>
+    }
 
 	func store<T>(
 		for type: T.Type,
@@ -156,7 +160,7 @@ public extension StoreDependencies {
 		test: @autoclosure () -> Store<T>? = nil,
 		preview: @autoclosure () -> Store<T>? = nil
 	) -> Store<T> {
-		(stores[ObjectIdentifier(type)] as? Store<T>) ?? defaultFor(
+        store(for: type) ?? defaultFor(
 			live: live(),
 			test: test(),
 			preview: preview()
