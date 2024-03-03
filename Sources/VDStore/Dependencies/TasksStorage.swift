@@ -16,6 +16,9 @@ public final class TasksStorage {
 
 	var count: Int { tasks.count }
 
+    public init() {
+    }
+
 	public func cancel(id: AnyHashable) {
 		tasks[id]?.cancel()
 		remove(id: id)
@@ -23,17 +26,47 @@ public final class TasksStorage {
 
 	fileprivate func add<T, E: Error>(for id: AnyHashable, _ task: Task<T, E>) {
 		cancel(id: id)
-		tasks[id] = Task { [weak self] in
-			do {
-				_ = try await task.value
-			} catch {}
-			self?.remove(id: id)
+        var isFinished = false
+		let task = Task { [weak self] in
+            _ = try? await task.value
+            self?.remove(id: id)
+            isFinished = true
 		}
+        if !isFinished {
+            tasks[id] = task
+        }
 	}
 
 	private func remove(id: AnyHashable) {
 		tasks[id] = nil
 	}
+}
+
+public extension Store {
+
+    @discardableResult
+    func task<T>(
+        id: AnyHashable,
+        _ task: @escaping @Sendable () async throws -> T
+    ) -> Task<T, Error> {
+        Task(operation: task).store(in: dependencies.tasksStorage, id: id)
+    }
+
+    @discardableResult
+    func task<T>(
+        id: AnyHashable,
+        _ task: @escaping @Sendable () async -> T
+    ) -> Task<T, Never> {
+        Task(operation: task).store(in: dependencies.tasksStorage, id: id)
+    }
+    
+    func cancel<Arg, Res>(_ action: Action<Arg, Res>.Async) {
+        dependencies.tasksStorage.cancel(id: action.id)
+    }
+    
+    func cancel<Arg, Res>(_ action: Action<Arg, Res>.AsyncThrows) {
+        dependencies.tasksStorage.cancel(id: action.id)
+    }
 }
 
 public extension Task {

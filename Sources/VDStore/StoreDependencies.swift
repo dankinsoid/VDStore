@@ -38,24 +38,24 @@ public struct StoreDependencies {
 		new.dependencies.merge(dependencies.dependencies) { _, new in new }
 		return new
 	}
+}
 
-	public func defaultFor<Value>(
-		live: @autoclosure () -> Value,
-		test: @autoclosure () -> Value? = nil,
-		preview: @autoclosure () -> Value? = nil
-	) -> Value {
-		#if DEBUG
-		if _isPreview {
-			return preview() ?? test() ?? live()
-		} else if _XCTIsTesting {
-			return test() ?? preview() ?? live()
-		} else {
-			return live()
-		}
-		#else
-		return live()
-		#endif
-	}
+public func defaultFor<Value>(
+    live: @autoclosure () -> Value,
+    test: @autoclosure () -> Value? = nil,
+    preview: @autoclosure () -> Value? = nil
+) -> Value {
+#if DEBUG
+    if _isPreview {
+        return preview() ?? test() ?? live()
+    } else if _XCTIsTesting {
+        return test() ?? preview() ?? live()
+    } else {
+        return live()
+    }
+#else
+    return live()
+#endif
 }
 
 private let _XCTIsTesting: Bool = ProcessInfo.processInfo.environment.keys.contains("XCTestBundlePath")

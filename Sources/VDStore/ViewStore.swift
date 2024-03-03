@@ -30,7 +30,7 @@ public struct ViewStore<State>: DynamicProperty {
 	}
 
 	public var binding: Binding<State> {
-		projectedValue.$state.binding
+		projectedValue.binding
 	}
 
 	public init(store: Store<State>) {
@@ -49,26 +49,25 @@ public struct ViewStore<State>: DynamicProperty {
 		self.init(store: Store(wrappedValue: state))
 	}
 
+    @MainActor
+    private enum Property: DynamicProperty {
+
+        case stateObject(StateObject<Observable>)
+        case store(Store<State>)
+    }
+
 	private final class Observable: ObservableObject {
 
-		typealias ObjectWillChangePublisher = AnyPublisher<State, Never>
+		typealias ObjectWillChangePublisher = AnyPublisher<Void, Never>
 
 		let store: Store<State>
+        var objectWillChange: AnyPublisher<Void, Never> {
+            store.willSet
+        }
 
-		var objectWillChange: AnyPublisher<State, Never> {
-			store.publisher
-		}
-
-		init(store: Store<State>) {
-			self.store = store
-		}
-	}
-
-	@MainActor
-	private enum Property: DynamicProperty {
-
-		case stateObject(StateObject<Observable>)
-		case store(Store<State>)
+        init(store: Store<State>) {
+            self.store = store
+        }
 	}
 }
 
@@ -93,6 +92,22 @@ extension EnvironmentValues {
 	}
 }
 
+public extension Store {
+
+	@available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
+	var viewStore: ViewStore<State> {
+		ViewStore(store: self)
+	}
+
+	var binding: Binding<State> {
+        Binding {
+            state
+        } set: {
+            state = $0
+        }
+	}
+}
+
 @available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
 public extension View {
 
@@ -100,6 +115,12 @@ public extension View {
 		environment(\.storeDependencies, dependencies)
 	}
 
+    func storeDependencies(_ dependencies: @escaping (StoreDependencies) -> StoreDependencies) -> some View {
+        transformEnvironment(\.storeDependencies) { deps in
+            deps = dependencies(deps)
+        }
+    }
+    
 	func storeDependency<D>(_ keyPath: WritableKeyPath<StoreDependencies, D>, _ value: D) -> some View {
 		transformEnvironment(\.storeDependencies) { deps in
 			deps[keyPath: keyPath] = value

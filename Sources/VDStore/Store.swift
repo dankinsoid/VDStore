@@ -5,18 +5,27 @@ import Foundation
 @propertyWrapper
 public struct Store<State> {
 
-	@Ref public var state: State
-	public let publisher: AnyPublisher<State, Never>
+    public var state: State {
+        get { _publisher.stateRef.wrappedValue }
+        nonmutating set { _publisher.stateRef.wrappedValue = newValue }
+    }
 	public var dependencies: StoreDependencies {
 		_dependencies.with(store: self)
 	}
+    public nonisolated var publisher: AnyPublisher<State, Never> {
+        _publisher.eraseToAnyPublisher()
+    }
+    public nonisolated var willSet: AnyPublisher<Void, Never> {
+        _publisher.willSet.eraseToAnyPublisher()
+    }
 
+    private let _publisher: StorePublisher<State>
 	private var _dependencies: StoreDependencies
 	private var values: [PartialKeyPath<Store>: Any]
 
 	public var wrappedValue: State {
 		get { state }
-		nonmutating set { state = newValue }
+        nonmutating set { state = newValue }
 	}
 
 	public var projectedValue: Store<State> {
@@ -29,45 +38,19 @@ public struct Store<State> {
 	}
 
 	public nonisolated init(_ state: State) {
-		let subject = CurrentValueSubject<State, Never>(state)
 		self.init(
-			state: Ref {
-				subject.value
-			} set: { state in
-				subject.send(state)
-			},
-			publisher: subject
+            publisher: StorePublisher(state),
+            dependencies: StoreDependencies(),
+            values: [:]
 		)
 	}
 
-	public nonisolated init<P: Publisher>(
-		state: Ref<State>,
-		publisher: P,
-		dependencies: StoreDependencies = StoreDependencies()
-	) where P.Output == State, P.Failure == Never {
-		self.init(state: state, publisher: publisher, dependencies: dependencies, values: [:])
-	}
-
-	/// - Warning: This initializer creates a `Store` instance that can observe mutations called through this store or its scopes.
-	public nonisolated init(
-		state: Ref<State>,
-		dependencies: StoreDependencies = StoreDependencies()
-	) {
-		self.init(
-			state: state,
-			publisher: RefPublisher(ref: state),
-			dependencies: dependencies
-		)
-	}
-
-	nonisolated init<P: Publisher>(
-		state: Ref<State>,
-		publisher: P,
+    nonisolated init(
+		publisher: StorePublisher<State>,
 		dependencies: StoreDependencies,
 		values: [PartialKeyPath<Store>: Any]
-	) where P.Output == State, P.Failure == Never {
-		_state = state
-		self.publisher = publisher.eraseToAnyPublisher()
+    ) {
+        _publisher = publisher
 		_dependencies = dependencies
 		self.values = values
 	}
@@ -77,18 +60,18 @@ public struct Store<State> {
 		set setter: @escaping (inout State, ChildState) -> Void
 	) -> Store<ChildState> {
 		Store<ChildState>(
-			state: $state.scope(get: getter, set: setter),
-			publisher: publisher.map(getter),
-			dependencies: dependencies
+			publisher: StorePublisher<ChildState>(parent: _publisher, get: getter, set: setter),
+			dependencies: dependencies,
+            values: [:]
 		)
 	}
 
 	public func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Store<ChildState> {
-		Store<ChildState>(
-			state: $state.scope(keyPath),
-			publisher: publisher.map(keyPath),
-			dependencies: dependencies
-		)
+        scope {
+            $0[keyPath: keyPath]
+        } set: {
+            $0[keyPath: keyPath] = $1
+        }
 	}
 
 	public func property<Dependency>(
@@ -96,8 +79,7 @@ public struct Store<State> {
 		_ value: Dependency
 	) -> Store {
 		Store(
-			state: $state,
-			publisher: publisher,
+			publisher: _publisher,
 			dependencies: dependencies,
 			values: values.merging([keyPath: value]) { _, new in new }
 		)
@@ -116,8 +98,7 @@ public struct Store<State> {
 		_ transform: (StoreDependencies) -> StoreDependencies
 	) -> Store {
 		Store(
-			state: $state,
-			publisher: publisher,
+			publisher: _publisher,
 			dependencies: transform(dependencies),
 			values: values
 		)
@@ -129,16 +110,33 @@ public struct Store<State> {
 		var dependencies = dependencies
 		transform(&dependencies)
 		return Store(
-			state: $state,
-			publisher: publisher,
+			publisher: _publisher,
 			dependencies: dependencies,
 			values: values
 		)
 	}
 
-	public func modify(_ modifier: (inout State) -> Void) {
-		modifier(&state)
-	}
+    public func update<T>(_ update: () async throws -> T) async rethrows -> T {
+        let wasUpdating = _publisher.isUpdating.wrappedValue
+        _publisher.isUpdating.wrappedValue = true
+        let result = try await update()
+        if !wasUpdating {
+            _publisher.isUpdating.wrappedValue = false
+            _publisher.send()
+        }
+        return result
+    }
+
+    public func update<T>(_ update: () throws -> T) rethrows -> T {
+        let wasUpdating = _publisher.isUpdating.wrappedValue
+        _publisher.isUpdating.wrappedValue = true
+        let result = try update()
+        if !wasUpdating {
+            _publisher.isUpdating.wrappedValue = false
+            _publisher.send()
+        }
+        return result
+    }
 
 	public subscript<Value>(_ keyPath: KeyPath<Store<State>, Value>) -> Value? {
 		values[keyPath] as? Value

@@ -30,12 +30,24 @@ struct Search: Equatable {
 	}
 }
 
+enum TT {
+
+    @State static var ee: Int = 0
+}
+
+extension Store<Search> {
+
+    func testFunc(
+        _ id: GeocodingSearch.Result.ID
+    ) -> Int {
+        return 0
+    }
+}
+
+@Actions
 extension Store<Search> {
 
 	func forecastResponse(id: GeocodingSearch.Result.ID, result: Result<Forecast, Error>) {
-		var state = state
-		defer { self.state = state }
-
 		switch result {
 		case .failure:
 			state.weather = nil
@@ -58,29 +70,24 @@ extension Store<Search> {
 	}
 
 	func searchQueryChanged(query: String) {
-		var state = state
-		defer { self.state = state }
-		state.searchQuery = query
-		if query.isEmpty {
-			state.results = []
-			state.weather = nil
-			dependencies.tasksStorage.cancel(id: CancelID.location)
-		}
+        state.searchQuery = query
+        if query.isEmpty {
+            state.results = []
+            state.weather = nil
+            cancel(Self.searchQueryChangeDebounced)
+        }
 	}
 
-	func searchQueryChangeDebounced() -> Task<Void, Never> {
+	func searchQueryChangeDebounced() async {
 		guard !state.searchQuery.isEmpty else {
-			return Task {}
+			return
 		}
-		return Task { [query = state.searchQuery] in
-			do {
-				try await searchResponse(result: .success(dependencies.weatherClient.search(query)))
-			} catch {
-				searchResponse(result: .failure(error))
-			}
-		}
-		.store(in: dependencies.tasksStorage, id: CancelID.location)
-	}
+        do {
+            try await searchResponse(result: .success(dependencies.weatherClient.search(state.searchQuery)))
+        } catch {
+            searchResponse(result: .failure(error))
+        }
+    }
 
 	func searchResponse(result: Result<GeocodingSearch, Error>) {
 		switch result {
@@ -91,20 +98,14 @@ extension Store<Search> {
 		}
 	}
 
-	func searchResultTapped(location: GeocodingSearch.Result) {
+    func searchResultTapped(location: GeocodingSearch.Result) async {
 		state.resultForecastRequestInFlight = location
-
-		Task {
-			do {
-				try await forecastResponse(id: location.id, result: .success(dependencies.weatherClient.forecast(location)))
-			} catch {
-				forecastResponse(id: location.id, result: .failure(error))
-			}
-		}
-		.store(in: dependencies.tasksStorage, id: CancelID.weather)
+       do {
+           try await forecastResponse(id: location.id, result: .success(dependencies.weatherClient.forecast(location)))
+       } catch {
+           forecastResponse(id: location.id, result: .failure(error))
+       }
 	}
-
-	private enum CancelID { case location, weather }
 }
 
 // MARK: - Search feature view
@@ -139,7 +140,9 @@ struct SearchView: View {
 					ForEach(state.results) { location in
 						VStack(alignment: .leading) {
 							Button {
-								$state.searchResultTapped(location: location)
+                                Task {
+                                    await $state.searchResultTapped(location: location)
+                                }
 							} label: {
 								HStack {
 									Text(location.name)
@@ -168,7 +171,7 @@ struct SearchView: View {
 		.task(id: state.searchQuery) {
 			do {
 				try await Task.sleep(nanoseconds: NSEC_PER_SEC / 3)
-				await $state.searchQueryChangeDebounced().value
+				await $state.searchQueryChangeDebounced()
 			} catch {}
 		}
 	}
@@ -188,6 +191,19 @@ struct SearchView: View {
 			.padding(.leading, 16)
 		}
 	}
+}
+
+struct LoggerMiddleware: StoreMiddleware {
+    
+    func execute<State, Args, Res>(
+        _ args: Args,
+        context: Store<State>.Action<Args, Res>.Context,
+        dependencies: StoreDependencies,
+        next: (Args) -> Res
+    ) -> Res {
+        print("\(context.actionID) called from \(context.function)@\(context.file):\(context.line)")
+        return next(args)
+    }
 }
 
 // MARK: - Private helpers
@@ -213,6 +229,6 @@ private let dateFormatter: DateFormatter = {
 
 struct SearchView_Previews: PreviewProvider {
 	static var previews: some View {
-		SearchView()
+		SearchView(state: Search())
 	}
 }
