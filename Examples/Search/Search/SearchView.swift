@@ -14,7 +14,7 @@ struct SearchView: View {
 	@ViewStore var state = Search()
 
 	var body: some View {
-		NavigationStack {
+        NavigationStack {
 			VStack(alignment: .leading) {
 				Text(readMe)
 					.padding()

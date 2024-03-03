@@ -2,13 +2,13 @@
 
 ## Introduction
 
-VDStore is a minimalistic iOS architecture library designed to manage application state in a clean and efficient manner. It provides a `Store` struct that enables state mutation, state subscription, dependency injection, and fragmentation into scopes for scaling. VDStore is compatible with both SwiftUI and UIKit.
+VDStore is a minimalistic iOS architecture library designed to manage application state in a clean and efficient manner. It provides a `Store` struct that enables state mutation, state subscription, di injection, and fragmentation into scopes for scaling. VDStore is compatible with both SwiftUI and UIKit.
 
 ## Features
 
 - **State Management**: Easily handle and mutate the state of your app in a structured and type-safe way.
 - **State Subscription**: Observe state changes and update your UI in a reactive manner.
-- **Dependency Injection**: Seamlessly manage dependencies and inject services as needed.
+- **DIValue Injection**: Seamlessly manage dependencies and inject services as needed.
 - **Fragmentation into Scopes**: Efficiently break down and manage complex states by creating focused sub-stores with scoped functionality.
 
 ## Usage
@@ -84,7 +84,7 @@ struct CounterView: View {
 How to define and inject dependencies:
 
 ```swift
-extension StoreDependencies {
+extension StoreDIValues {
 
    public var someService: SomeService {
       self[\.someService] ?? SomeService.shared
@@ -94,7 +94,7 @@ extension StoreDependencies {
 func getSomeChildStore(store: Store<Counter>) -> Store<Int> {
    store
      .scope(\.counter)
-     .dependency(\.someService, SomeService())
+     .di(\.someService, SomeService())
 }
 ```
 
@@ -115,7 +115,7 @@ import PackageDescription
 let package = Package(
   name: "SomeProject",
   dependencies: [
-    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.9.0")
+    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.10.0")
   ],
   targets: [
     .target(name: "SomeProject", dependencies: ["VDStore"])

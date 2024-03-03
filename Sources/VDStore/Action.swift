@@ -128,7 +128,7 @@ extension Store {
         let closure = {
             action.action(self, $0)
         }
-        return dependencies.middlewares.execute(
+        return di.middlewares.execute(
             args,
             context: Store<State>.Action<Args, Res>.Context(
                 actionID: action.id,
@@ -136,7 +136,7 @@ extension Store {
                 line: line,
                 function: function
             ),
-            dependencies: dependencies
+            dependencies: di
         ) { args in
             closure(args)
         }

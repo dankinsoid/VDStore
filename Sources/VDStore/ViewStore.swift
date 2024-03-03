@@ -8,7 +8,7 @@ import SwiftUI
 public struct ViewStore<State>: DynamicProperty {
 
 	private let property: Property
-	@Environment(\.storeDependencies) private var transformDependency
+	@Environment(\.storeDIValues) private var transformDI
 
 	public var wrappedValue: State {
 		get { projectedValue.state }
@@ -24,7 +24,7 @@ public struct ViewStore<State>: DynamicProperty {
 			result = store
 		}
 		return result
-			.transformDependency(transformDependency)
+			.transformDI(transformDI)
 	}
 
 	public var binding: Binding<State> {
@@ -32,12 +32,12 @@ public struct ViewStore<State>: DynamicProperty {
 	}
 
 	public init(store: Store<State>) {
-		if store.dependencies.isViewStore {
+		if store.di.isViewStore {
 			property = .store(store)
 		} else {
 			property = .stateObject(
 				StateObject(
-					wrappedValue: Observable(store: store.dependency(\.isViewStore, true))
+					wrappedValue: Observable(store: store.di(\.isViewStore, true))
 				)
 			)
 		}
@@ -69,7 +69,7 @@ public struct ViewStore<State>: DynamicProperty {
 	}
 }
 
-extension StoreDependencies {
+extension StoreDIValues {
 
 	var isViewStore: Bool {
         get { self[\.isViewStore] ?? false }
@@ -80,14 +80,14 @@ extension StoreDependencies {
 @available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
 extension EnvironmentValues {
 
-	private enum DependencyKey: EnvironmentKey {
+	private enum DIValueKey: EnvironmentKey {
 
-        static let defaultValue: (StoreDependencies) -> StoreDependencies = { $0 }
+        static let defaultValue: (StoreDIValues) -> StoreDIValues = { $0 }
 	}
 
-	var storeDependencies: (StoreDependencies) -> StoreDependencies {
-		get { self[DependencyKey.self] }
-		set { self[DependencyKey.self] = newValue }
+	var storeDIValues: (StoreDIValues) -> StoreDIValues {
+		get { self[DIValueKey.self] }
+		set { self[DIValueKey.self] = newValue }
 	}
 }
 
@@ -110,22 +110,22 @@ public extension Store {
 @available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
 public extension View {
     
-    func storeDependencies(_ transform: @escaping (StoreDependencies) -> StoreDependencies) -> some View {
-        transformEnvironment(\.storeDependencies) { current in
+    func storeDIValues(_ transform: @escaping (StoreDIValues) -> StoreDIValues) -> some View {
+        transformEnvironment(\.storeDIValues) { current in
             current = { [current] dependencies in
                 transform(current(dependencies))
             }
         }
     }
 
-	func storeDependencies(_ dependencies: StoreDependencies) -> some View {
-        storeDependencies {
+	func storeDIValues(_ dependencies: StoreDIValues) -> some View {
+        storeDIValues {
             $0.merging(with: dependencies)
         }
 	}
 
-	func storeDependency<D>(_ keyPath: WritableKeyPath<StoreDependencies, D>, _ value: D) -> some View {
-        storeDependencies { deps in
+	func storeDIValue<D>(_ keyPath: WritableKeyPath<StoreDIValues, D>, _ value: D) -> some View {
+        storeDIValues { deps in
             deps.with(keyPath, value)
 		}
 	}

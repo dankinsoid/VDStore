@@ -6,12 +6,19 @@ import Foundation
 public struct Store<State> {
 
     public var state: State {
-        get { _publisher.stateRef.wrappedValue }
-        nonmutating set { _publisher.stateRef.wrappedValue = newValue }
+        get { _publisher.state }
+        nonmutating set {
+            if suspendAllSyncStoreUpdates, !_publisher.isUpdating {
+                suspendSyncUpdates()
+            }
+            _publisher.state = newValue
+        }
     }
-	public var dependencies: StoreDependencies {
-		_dependencies.with(store: self)
-	}
+
+    public var di: StoreDIValues {
+        _dependencies.with(store: self)
+    }
+
     public nonisolated var publisher: AnyPublisher<State, Never> {
         _publisher.eraseToAnyPublisher()
     }
@@ -20,7 +27,7 @@ public struct Store<State> {
     }
 
     private let _publisher: StorePublisher<State>
-	private var _dependencies: StoreDependencies
+	private var _dependencies: StoreDIValues
 	private var values: [PartialKeyPath<Store>: Any]
 
 	public var wrappedValue: State {
@@ -40,18 +47,18 @@ public struct Store<State> {
 	public nonisolated init(_ state: State) {
 		self.init(
             publisher: StorePublisher(state),
-            dependencies: StoreDependencies(),
+            di: StoreDIValues(),
             values: [:]
 		)
 	}
 
     nonisolated init(
 		publisher: StorePublisher<State>,
-		dependencies: StoreDependencies,
+        di: StoreDIValues,
 		values: [PartialKeyPath<Store>: Any]
     ) {
         _publisher = publisher
-		_dependencies = dependencies
+		_dependencies = di
 		self.values = values
 	}
 
@@ -61,7 +68,7 @@ public struct Store<State> {
 	) -> Store<ChildState> {
 		Store<ChildState>(
 			publisher: StorePublisher<ChildState>(parent: _publisher, get: getter, set: setter),
-			dependencies: dependencies,
+            di: di,
             values: [:]
 		)
 	}
@@ -74,68 +81,64 @@ public struct Store<State> {
         }
 	}
 
-	public func property<Dependency>(
-		_ keyPath: KeyPath<Store, Dependency>,
-		_ value: Dependency
+	public func property<DIValue>(
+		_ keyPath: KeyPath<Store, DIValue>,
+		_ value: DIValue
 	) -> Store {
 		Store(
 			publisher: _publisher,
-			dependencies: dependencies,
+            di: di,
 			values: values.merging([keyPath: value]) { _, new in new }
 		)
 	}
 
-	public func dependency<Dependency>(
-		_ keyPath: WritableKeyPath<StoreDependencies, Dependency>,
-		_ value: Dependency
+	public func di<DIValue>(
+		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
+		_ value: DIValue
 	) -> Store {
-		transformDependency {
+		transformDI {
 			$0.with(keyPath, value)
 		}
 	}
 
-	public func transformDependency(
-		_ transform: (StoreDependencies) -> StoreDependencies
+	public func transformDI(
+		_ transform: (StoreDIValues) -> StoreDIValues
 	) -> Store {
 		Store(
 			publisher: _publisher,
-			dependencies: transform(_dependencies),
+            di: transform(_dependencies),
 			values: values
 		)
 	}
 
-	public func transformDependency(
-		_ transform: (inout StoreDependencies) -> Void
+	public func transformDI(
+		_ transform: (inout StoreDIValues) -> Void
 	) -> Store {
 		var dependencies = _dependencies
 		transform(&dependencies)
 		return Store(
 			publisher: _publisher,
-			dependencies: dependencies,
+            di: dependencies,
 			values: values
 		)
 	}
 
-    public func update<T>(_ update: () async throws -> T) async rethrows -> T {
-        let wasUpdating = _publisher.isUpdating.wrappedValue
-        _publisher.isUpdating.wrappedValue = true
-        let result = try await update()
-        if !wasUpdating {
-            _publisher.isUpdating.wrappedValue = false
-            _publisher.send()
+    /// Suspends the store from updating the UI until the block returns.
+    public func update<T>(_ update: () throws -> T) rethrows -> T {
+        if !suspendAllSyncStoreUpdates, !_publisher.isUpdating {
+            defer { _publisher.afterUpdate() }
+            _publisher.beforeUpdate()
         }
+        let result = try update()
         return result
     }
 
-    public func update<T>(_ update: () throws -> T) rethrows -> T {
-        let wasUpdating = _publisher.isUpdating.wrappedValue
-        _publisher.isUpdating.wrappedValue = true
-        let result = try update()
-        if !wasUpdating {
-            _publisher.isUpdating.wrappedValue = false
-            _publisher.send()
+    /// Suspends the store from updating the UI while all synchronous operations are being performed.
+    public func suspendSyncUpdates() {
+        _publisher.beforeUpdate()
+        DispatchQueue.main.async { [_publisher] in
+            _publisher.afterUpdate()
         }
-        return result
     }
 
 	public subscript<Value>(_ keyPath: KeyPath<Store<State>, Value>) -> Value? {
@@ -143,18 +146,20 @@ public struct Store<State> {
 	}
 }
 
-public extension StoreDependencies {
+public var suspendAllSyncStoreUpdates = true
+
+extension StoreDIValues {
     
     private var stores: [ObjectIdentifier: Any] {
         get { self[\.stores] ?? [:] }
         set { self[\.stores] = newValue }
     }
     
-    func store<T>(for type: T.Type) -> Store<T>? {
+    public func store<T>(for type: T.Type) -> Store<T>? {
         stores[ObjectIdentifier(type)] as? Store<T>
     }
 
-	func store<T>(
+    public func store<T>(
 		for type: T.Type,
 		defaultForLive live: @autoclosure () -> Store<T>,
 		test: @autoclosure () -> Store<T>? = nil,
@@ -167,9 +172,9 @@ public extension StoreDependencies {
 		)
 	}
 
-	func with<T>(
+    public func with<T>(
 		store: Store<T>
-	) -> StoreDependencies {
+	) -> StoreDIValues {
 		transform(\.stores) { stores in
 			stores[ObjectIdentifier(T.self)] = store
 		}

@@ -3,120 +3,105 @@ import Combine
 import XCTest
 
 @MainActor
-class VDStoreTests: XCTestCase {
-
-	/// Test that initializing a Store with a given state sets the initial state correctly.
-	func testInitialState() {
-		let initialCounter = Counter(counter: 10)
-		let store = Store(initialCounter)
-		XCTAssertEqual(store.state.counter, 10)
-	}
-
-	/// Test that a state mutation updates the state as expected.
-	func testStateMutation() {
-		let store = Store(Counter())
-		store.add()
-
-		XCTAssertEqual(store.state.counter, 1)
-	}
-
-	/// Test dependency injection, ensuring that a service or dependency is correctly injected into a Store.
-	func testDependencyInjection() {
-		let service: SomeService = MockSomeService()
-		let store = Store(Counter()).dependency(\.someService, service)
-
-		XCTAssert(store.dependencies.someService === service)
-	}
-
-	/// Test that scoped stores correctly inherit dependencies from their parent.
-	func testScopedStoreInheritsDependencies() {
-		let service: SomeService = MockSomeService()
-		let parentStore = Store(Counter()).dependency(\.someService, service)
-		let childStore = parentStore.scope(\.counter)
-		XCTAssert(childStore.dependencies.someService === service)
-	}
-
-	/// Test that the publisher property of a Store sends updates when the state changes.
-	func testPublisherUpdates() {
-		let initialCounter = Counter(counter: 0)
-		let store = Store(initialCounter)
-		let expectation = expectation(description: "State updated")
-		var bag = Set<AnyCancellable>()
-
-		store.publisher.sink { newState in
-			if newState.counter == 1 {
-				expectation.fulfill()
-			}
-		}
-		.store(in: &bag)
-
-		store.add()
-		waitForExpectations(timeout: 1, handler: nil)
-	}
-
-	/// Test that computed properties in a Store extension return expected values based on the store’s state.
-	func testComputedProperty() {
-		let initialCounter = Counter(counter: 20)
-		let store = Store(initialCounter).property(\.step, 2)
-
-		XCTAssertEqual(store.step, 2)
-	}
-
-	/// Test that a Store can use a mock dependency correctly.
-	func testMockDependency() {
-		let mockService = MockSomeService()
-		let store = Store(Counter()).dependency(\.someService, mockService)
-
-		XCTAssert(store.dependencies.someService is MockSomeService)
-	}
-
-	/// Test that state mutations are thread-safe.
-	func testThreadSafety() async {
-		let store = Store(Counter())
-		let isMainThread = await Task.detached {
-			await store.check {
-				Thread.isMainThread
-			}
-		}.value
-		XCTAssertEqual(isMainThread, true)
-	}
-
-	func testTasksStorage() async {
-		let store = Store(Counter())
-		let id = "id"
-
-		// Test that a task is added to the tasks storage and removed when it completes.
-		var task = Task<Void, Never> {
-			try? await Task.sleep(nanoseconds: 1000)
-		}
-		.store(in: store.dependencies.tasksStorage, id: id)
-
-		XCTAssertEqual(store.dependencies.tasksStorage.count, 1)
-		await task.value
-		try? await Task.sleep(nanoseconds: 1)
-		XCTAssertEqual(store.dependencies.tasksStorage.count, 0)
-
-		// Test that a task is added to the tasks storage and removed when it cancelled.
-		task = Task<Void, Never> {
-			try? await Task.sleep(nanoseconds: 1000)
-		}
-		.store(in: store.dependencies.tasksStorage, id: id)
-
-		XCTAssertEqual(store.dependencies.tasksStorage.count, 1)
-		store.dependencies.tasksStorage.cancel(id: id)
-		XCTAssertEqual(store.dependencies.tasksStorage.count, 0)
-
-		// Test that a task is added to the tasks storage and removed when it cancelled.
-		task = Task<Void, Never> {
-			try? await Task.sleep(nanoseconds: 1000)
-		}
-		.store(in: store.dependencies.tasksStorage, id: id)
-		XCTAssertEqual(store.dependencies.tasksStorage.count, 1)
-		task.cancel()
-		await task.value
-		try? await Task.sleep(nanoseconds: 1)
-		XCTAssertEqual(store.dependencies.tasksStorage.count, 0)
-	}
+final class VDStoreTests: XCTestCase {
+    
+    /// Test that initializing a Store with a given state sets the initial state correctly.
+    func testInitialState() {
+        let initialCounter = Counter(counter: 10)
+        let store = Store(initialCounter)
+        XCTAssertEqual(store.state.counter, 10)
+    }
+    
+    /// Test that a state mutation updates the state as expected.
+    func testStateMutation() {
+        let store = Store(Counter())
+        store.add()
+        
+        XCTAssertEqual(store.state.counter, 1)
+    }
+    
+    /// Test dependency injection, ensuring that a service or di is correctly injected into a Store.
+    func testDependencyInjection() {
+        let service: SomeService = MockSomeService()
+        let store = Store(Counter()).di(\.someService, service)
+        
+        XCTAssert(store.di.someService === service)
+    }
+    
+    /// Test that scoped stores correctly inherit dependencies from their parent.
+    func testScopedStoreInheritsDependencies() {
+        let service: SomeService = MockSomeService()
+        let parentStore = Store(Counter()).di(\.someService, service)
+        let childStore = parentStore.scope(\.counter)
+        XCTAssert(childStore.di.someService === service)
+    }
+    
+    /// Test that the publisher property of a Store sends updates when the state changes.
+    func testPublisherUpdates() {
+        let initialCounter = Counter(counter: 0)
+        let store = Store(initialCounter)
+        let expectation = expectation(description: "State updated")
+        var bag = Set<AnyCancellable>()
+        
+        store.publisher.sink { newState in
+            if newState.counter == 1 {
+                expectation.fulfill()
+            }
+        }
+        .store(in: &bag)
+        
+        store.add()
+        waitForExpectations(timeout: 1, handler: nil)
+    }
+    
+    /// Test that computed properties in a Store extension return expected values based on the store’s state.
+    func testComputedProperty() {
+        let initialCounter = Counter(counter: 20)
+        let store = Store(initialCounter).property(\.step, 2)
+        
+        XCTAssertEqual(store.step, 2)
+    }
+    
+    /// Test that a Store can use a mock di correctly.
+    func testMockDIValue() {
+        let mockService = MockSomeService()
+        let store = Store(Counter()).di(\.someService, mockService)
+        
+        XCTAssert(store.di.someService is MockSomeService)
+    }
+    
+    /// Test that state mutations are thread-safe.
+    func testThreadSafety() async {
+        let store = Store(Counter())
+        let isMainThread = await Task.detached {
+            await store.check {
+                Thread.isMainThread
+            }
+        }.value
+        XCTAssertEqual(isMainThread, true)
+    }
+    
+    func testTasksCancel() async {
+        let store = Store(Counter())
+        let id = "id"
+        let value = await store.task(id: id) {
+            for i in 0..<10 {
+                guard !Task.isCancelled else { return i }
+                if i == 5 {
+                    await store.cancel(id: id)
+                }
+            }
+            return 10
+        }
+        .value
+        XCTAssertEqual(value, 6)
+    }
+    
+    func testTasksMacroCancel() async {
+        let store = Store(Counter())
+        let value = await store.asyncTask()
+        XCTAssertEqual(value, 6)
+    }
 }
 
 struct Counter: Equatable {
@@ -125,10 +110,10 @@ struct Counter: Equatable {
 }
 
 extension Store<Counter> {
-
-	var step: Int {
-		self[\.step] ?? 1
-	}
+    
+    var step: Int {
+        self[\.step] ?? 1
+    }
 
 	func add() {
 		state.counter += 1
@@ -139,14 +124,29 @@ extension Store<Counter> {
 	}
 }
 
+@Actions
+extension Store<Counter> {
+
+    func asyncTask() async -> Int {
+        for i in 0..<10 {
+            guard !Task.isCancelled else { return i }
+            if i == 5 {
+                cancel(Self.asyncTask)
+            }
+        }
+        return 10
+    }
+}
+
 protocol SomeService: AnyObject {}
 
-/// Mock dependency for testing purposes
+/// Mock di for testing purposes
 class MockSomeService: SomeService {}
 
-extension StoreDependencies {
+extension StoreDIValues {
 
 	var someService: SomeService {
-		self[\.someService] ?? MockSomeService()
+        get { self[\.someService] ?? MockSomeService() }
+        set { self[\.someService] = newValue }
 	}
 }

@@ -1,39 +1,39 @@
 import Foundation
 
-public struct StoreDependencies {
+public struct StoreDIValues {
 
-	private var dependencies: [PartialKeyPath<StoreDependencies>: Any] = [:]
+	private var dependencies: [PartialKeyPath<StoreDIValues>: Any] = [:]
 
 	public init() {}
 
-	public subscript<Dependency>(_ keyPath: KeyPath<StoreDependencies, Dependency>) -> Dependency? {
+	public subscript<DIValue>(_ keyPath: WritableKeyPath<StoreDIValues, DIValue>) -> DIValue? {
 		get {
-			dependencies[keyPath] as? Dependency
+			dependencies[keyPath] as? DIValue
 		}
 		set {
 			dependencies[keyPath] = newValue
 		}
 	}
 
-	public func with<Dependency>(
-		_ keyPath: WritableKeyPath<StoreDependencies, Dependency>,
-		_ value: Dependency
-	) -> StoreDependencies {
+	public func with<DIValue>(
+		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
+		_ value: DIValue
+	) -> StoreDIValues {
 		var new = self
         new[keyPath: keyPath] = value
 		return new
 	}
 
-	public func transform<Dependency>(
-		_ keyPath: WritableKeyPath<StoreDependencies, Dependency>,
-		_ transform: (inout Dependency) -> Void
-	) -> StoreDependencies {
+	public func transform<DIValue>(
+		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
+		_ transform: (inout DIValue) -> Void
+	) -> StoreDIValues {
 		var value = self[keyPath: keyPath]
 		transform(&value)
 		return with(keyPath, value)
 	}
 
-	public func merging(with dependencies: StoreDependencies) -> StoreDependencies {
+	public func merging(with dependencies: StoreDIValues) -> StoreDIValues {
 		var new = self
 		new.dependencies.merge(dependencies.dependencies) { _, new in new }
 		return new

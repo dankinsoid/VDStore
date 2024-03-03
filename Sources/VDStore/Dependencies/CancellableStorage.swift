@@ -1,9 +1,10 @@
 import Combine
 
-extension StoreDependencies {
+extension StoreDIValues {
 
 	var cancellableStorage: CancellableStorage {
-		self[\.cancellableStorage] ?? .shared
+        get { self[\.cancellableStorage] ?? .shared }
+        set { self[\.cancellableStorage] = newValue }
 	}
 
 	@MainActor

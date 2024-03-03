@@ -1,9 +1,10 @@
 import Foundation
 
-public extension StoreDependencies {
+public extension StoreDIValues {
 
 	var tasksStorage: TasksStorage {
-		self[\.tasksStorage] ?? .shared
+        get { self[\.tasksStorage] ?? .shared }
+        set { self[\.tasksStorage] = newValue }
 	}
 }
 
@@ -12,7 +13,7 @@ public final class TasksStorage {
 
 	public static let shared = TasksStorage()
 
-	private var tasks: [AnyHashable: Task<Void, Never>] = [:]
+	private var tasks: [AnyHashable: CancellableTask] = [:]
 
 	var count: Int { tasks.count }
 
@@ -27,7 +28,7 @@ public final class TasksStorage {
 	fileprivate func add<T, E: Error>(for id: AnyHashable, _ task: Task<T, E>) {
 		cancel(id: id)
         var isFinished = false
-		let task = Task { [weak self] in
+		Task { [weak self] in
             _ = try? await task.value
             self?.remove(id: id)
             isFinished = true
@@ -42,6 +43,13 @@ public final class TasksStorage {
 	}
 }
 
+private protocol CancellableTask {
+    
+    func cancel()
+}
+
+extension Task: CancellableTask {}
+
 public extension Store {
 
     @discardableResult
@@ -49,7 +57,7 @@ public extension Store {
         id: AnyHashable,
         _ task: @escaping @Sendable () async throws -> T
     ) -> Task<T, Error> {
-        Task(operation: task).store(in: dependencies.tasksStorage, id: id)
+        Task(operation: task).store(in: di.tasksStorage, id: id)
     }
 
     @discardableResult
@@ -57,15 +65,19 @@ public extension Store {
         id: AnyHashable,
         _ task: @escaping @Sendable () async -> T
     ) -> Task<T, Never> {
-        Task(operation: task).store(in: dependencies.tasksStorage, id: id)
+        Task(operation: task).store(in: di.tasksStorage, id: id)
     }
     
     func cancel<Arg, Res>(_ action: Action<Arg, Res>.Async) {
-        dependencies.tasksStorage.cancel(id: action.id)
+        cancel(id: action.id)
     }
     
     func cancel<Arg, Res>(_ action: Action<Arg, Res>.AsyncThrows) {
-        dependencies.tasksStorage.cancel(id: action.id)
+        cancel(id: action.id)
+    }
+    
+    func cancel(id: AnyHashable) {
+        di.tasksStorage.cancel(id: id)
     }
 }
 

@@ -1,57 +1,81 @@
 import Combine
 
-final class StorePublisher<Output>: Publisher {
+struct StorePublisher<Output>: Publisher {
 
 	typealias Failure = Never
 
-    let stateRef: Ref<Output>
-    let willSet: PassthroughSubject<Void, Never>
-    let isUpdating: Ref<Bool>
+    var state: Output {
+        get { getter() }
+        nonmutating set { setter(newValue, true) }
+    }
+    var isUpdating: Bool { updatesCounter.wrappedValue > 0 }
+    var willSet: AnyPublisher<Void, Never> { publisher(_willSet) }
+    private let getter: () -> Output
+    private let setter: (Output, _ sendWillSet: Bool) -> Void
+    private let _willSet: PassthroughSubject<Void, Never>
+    private let updatesCounter: Ref<UInt>
     private let valuePublisher: AnyPublisher<Output, Never>
 
     init(_ value: Output) {
         let willSet = PassthroughSubject<Void, Never>()
-        self.willSet = willSet
+        self._willSet = willSet
 
         let valuePublisher = CurrentValueSubject<Output, Never>(value)
-        stateRef = Ref {
-            valuePublisher.value
-        } set: { value in
-            willSet.send()
+        getter = { valuePublisher.value }
+        setter = { value, sendWillSet in
+            if sendWillSet {
+                willSet.send()
+            }
             valuePublisher.send(value)
         }
         self.valuePublisher = valuePublisher.eraseToAnyPublisher()
 
-        var isUpdating = false
-        self.isUpdating = Ref {
-            isUpdating
+        var updatesCounter: UInt = 0
+        self.updatesCounter = Ref {
+            updatesCounter
         } set: {
-            isUpdating = $0
+            updatesCounter = $0
         }
     }
 
     init<T>(
         parent: StorePublisher<T>,
-        get getter: @escaping (T) -> Output,
-        set setter: @escaping (inout T, Output) -> Void
+        get: @escaping (T) -> Output,
+        set: @escaping (inout T, Output) -> Void
     ) {
-        valuePublisher = parent.valuePublisher.map(getter).eraseToAnyPublisher()
-        willSet = parent.willSet
-        isUpdating = parent.isUpdating
-        stateRef = parent.stateRef.scope(get: getter, set: setter)
+        valuePublisher = parent.valuePublisher.map(get).eraseToAnyPublisher()
+        _willSet = parent._willSet
+        updatesCounter = parent.updatesCounter
+        getter = { get(parent.getter()) }
+        setter = {
+            var state = parent.getter()
+            set(&state, $0)
+            parent.setter(state, $1)
+        }
     }
 
-    func send() {
-        let value = stateRef.wrappedValue
-        if !isUpdating.wrappedValue {
-            stateRef.wrappedValue = value
+    func beforeUpdate() {
+        if updatesCounter.wrappedValue == 0 {
+            _willSet.send()
+        }
+        updatesCounter.wrappedValue &+= 1
+    }
+
+    func afterUpdate() {
+        updatesCounter.wrappedValue &-= 1
+        if updatesCounter.wrappedValue == 0 {
+            setter(getter(), false)
         }
     }
 
 	func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Output == S.Input {
-        valuePublisher.filter { [isUpdating] _ in
-            !isUpdating.wrappedValue
-        }
-        .receive(subscriber: subscriber)
+        publisher(valuePublisher).receive(subscriber: subscriber)
 	}
+
+    private func publisher<P: Publisher>(_ publisher: P) -> AnyPublisher<P.Output, P.Failure> {
+        publisher.filter { [updatesCounter] _ in
+            updatesCounter.wrappedValue == 0
+        }
+        .eraseToAnyPublisher()
+    }
 }

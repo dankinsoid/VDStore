@@ -5,7 +5,7 @@ public protocol StoreMiddleware {
     func execute<State, Args, Res>(
         _ args: Args,
         context: Store<State>.Action<Args, Res>.Context,
-        dependencies: StoreDependencies,
+        dependencies: StoreDIValues,
         next: (Args) -> Res
     ) -> Res
 }
@@ -13,22 +13,22 @@ public protocol StoreMiddleware {
 extension Store {
     
     public func middleware(_ middleware: StoreMiddleware) -> Store {
-        transformDependency {
+        transformDI {
             $0.middleware(middleware)
         }
     }
 }
 
-extension StoreDependencies {
+extension StoreDIValues {
 
-    public func middleware(_ middleware: StoreMiddleware) -> StoreDependencies {
+    public func middleware(_ middleware: StoreMiddleware) -> StoreDIValues {
         transform(\.middlewares.middlewares) {
             $0.append(middleware)
         }
     }
 }
 
-extension StoreDependencies {
+extension StoreDIValues {
     
     var middlewares: Middlewares {
         get { self[\.middlewares] ?? Middlewares() }
@@ -43,7 +43,7 @@ struct Middlewares: StoreMiddleware {
     func execute<State, Args, Res>(
         _ args: Args,
         context: Store<State>.Action<Args, Res>.Context,
-        dependencies: StoreDependencies,
+        dependencies: StoreDIValues,
         next: (Args) -> Res
     ) -> Res {
         var call = next

@@ -4,6 +4,7 @@ import VDStore
 // MARK: - API models
 
 struct GeocodingSearch: Decodable, Equatable, Sendable {
+
 	var results: [Result]
 
 	struct Result: Decodable, Equatable, Identifiable, Sendable {
@@ -17,6 +18,7 @@ struct GeocodingSearch: Decodable, Equatable, Sendable {
 }
 
 struct Forecast: Decodable, Equatable, Sendable {
+
 	var daily: Daily
 	var dailyUnits: DailyUnits
 
@@ -32,10 +34,7 @@ struct Forecast: Decodable, Equatable, Sendable {
 	}
 }
 
-// MARK: - API client interface
-
-// Typically this interface would live in its own module, separate from the live implementation.
-// This allows the search feature to compile faster since it only depends on the interface.
+// MARK: - API client
 
 struct WeatherClient {
 	var forecast: @Sendable (GeocodingSearch.Result) async throws -> Forecast
@@ -75,11 +74,10 @@ extension WeatherClient {
 
 // MARK: - Live API implementation
 
-extension StoreDependencies {
+@StoreDIValuesList
+extension StoreDIValues {
 
-	var weatherClient: WeatherClient {
-        self[\.weatherClient] ?? .shared
-	}
+    var weatherClient: WeatherClient = .shared
 }
 
 // MARK: - Mock data

@@ -7,15 +7,6 @@ import SwiftSyntaxBuilder
 import SwiftSyntaxMacroExpansion
 import SwiftSyntaxMacros
 
-@main
-struct VDStoreMacrosPlugin: CompilerPlugin {
-    
-    let providingMacros: [Macro.Type] = [
-        ActionMacro.self,
-        ActionsMacro.self
-    ]
-}
-
 public struct ActionsMacro: MemberAttributeMacro, MemberMacro {
     
     public static func expansion(

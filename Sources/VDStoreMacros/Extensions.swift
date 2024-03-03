@@ -22,4 +22,11 @@ extension FunctionDeclSyntax {
         }
     }
 }
+
+extension MacroExpansionContext {
+    
+    func diagnose(_ type: DiagnosticSeverity = .error, node: SyntaxProtocol, _ message: String) {
+        diagnose(Diagnostic(node: Syntax(node), message: Feedback(type, message)))
+    }
+}
 #endif

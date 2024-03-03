@@ -10,6 +10,7 @@ struct Search: Equatable {
     var weather: Weather?
     
     struct Weather: Equatable {
+
         var id: GeocodingSearch.Result.ID
         var days: [Day]
         
