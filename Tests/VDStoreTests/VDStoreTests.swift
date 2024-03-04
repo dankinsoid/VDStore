@@ -36,24 +36,6 @@ final class VDStoreTests: XCTestCase {
         XCTAssert(childStore.di.someService === service)
     }
     
-    /// Test that the publisher property of a Store sends updates when the state changes.
-    func testPublisherUpdates() async {
-        let initialCounter = Counter(counter: 0)
-        let store = Store(initialCounter)
-        let expectation = expectation(description: "State updated")
-        var bag = Set<AnyCancellable>()
-        
-        store.publisher.sink { newState in
-            if newState.counter == 1 {
-                expectation.fulfill()
-            }
-        }
-        .store(in: &bag)
-        
-        store.add()
-        await fulfillment(of: [expectation], timeout: 0.1)
-    }
-    
     /// Test that a Store can use a mock di correctly.
     func testMockDIValue() {
         let mockService = MockSomeService()
@@ -89,11 +71,31 @@ final class VDStoreTests: XCTestCase {
         XCTAssertEqual(value, 6)
     }
     
+#if swift(>=5.9)
+    /// Test that the publisher property of a Store sends updates when the state changes.
+    func testPublisherUpdates() async {
+        let initialCounter = Counter(counter: 0)
+        let store = Store(initialCounter)
+        let expectation = expectation(description: "State updated")
+        var bag = Set<AnyCancellable>()
+        
+        store.publisher.sink { newState in
+            if newState.counter == 1 {
+                expectation.fulfill()
+            }
+        }
+        .store(in: &bag)
+        
+        store.add()
+        await fulfillment(of: [expectation], timeout: 0.1)
+    }
+    
     func testTasksMacroCancel() async {
         let store = Store(Counter())
         let value = await store.asyncTask()
         XCTAssertEqual(value, 6)
     }
+#endif
     
     func testNumberOfUpdates() async {
         let store = Store(Counter())
@@ -132,6 +134,7 @@ extension Store<Counter> {
 	}
 }
 
+#if swift(>=5.9)
 @Actions
 extension Store<Counter> {
 
@@ -145,6 +148,7 @@ extension Store<Counter> {
         return 10
     }
 }
+#endif
 
 protocol SomeService: AnyObject {}
 
