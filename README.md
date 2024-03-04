@@ -139,7 +139,7 @@ To use a dependency you should use `di` property:
 ```swift
 store.di.someService.someMethod()
 ```
-There is `defaultValueFor` global method that allows you to define default values depending on the environment: live, test or preview.
+There is `valueFor` global method that allows you to define default values depending on the environment: live, test or preview.
 
 ## Requirements
 
@@ -158,7 +158,7 @@ import PackageDescription
 let package = Package(
   name: "SomeProject",
   dependencies: [
-    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.13.0")
+    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.14.0")
   ],
   targets: [
     .target(name: "SomeProject", dependencies: ["VDStore"])

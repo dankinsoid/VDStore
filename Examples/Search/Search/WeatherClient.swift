@@ -42,34 +42,34 @@ struct WeatherClient {
 }
 
 extension WeatherClient {
-    
-    static let shared: WeatherClient = defaultFor(
-        live: WeatherClient(
-            forecast: { result in
-                var components = URLComponents(string: "https://api.open-meteo.com/v1/forecast")!
-                components.queryItems = [
-                    URLQueryItem(name: "latitude", value: "\(result.latitude)"),
-                    URLQueryItem(name: "longitude", value: "\(result.longitude)"),
-                    URLQueryItem(name: "daily", value: "temperature_2m_max,temperature_2m_min"),
-                    URLQueryItem(name: "timezone", value: TimeZone.autoupdatingCurrent.identifier),
-                ]
-                
-                let (data, _) = try await URLSession.shared.data(from: components.url!)
-                return try jsonDecoder.decode(Forecast.self, from: data)
-            },
-            search: { query in
-                var components = URLComponents(string: "https://geocoding-api.open-meteo.com/v1/search")!
-                components.queryItems = [URLQueryItem(name: "name", value: query)]
-                
-                let (data, _) = try await URLSession.shared.data(from: components.url!)
-                return try jsonDecoder.decode(GeocodingSearch.self, from: data)
-            }
-        ),
-        preview: WeatherClient(
-            forecast: { _ in .mock },
-            search: { _ in .mock }
-        )
-    )
+
+	static let shared: WeatherClient = valueFor(
+		live: WeatherClient(
+			forecast: { result in
+				var components = URLComponents(string: "https://api.open-meteo.com/v1/forecast")!
+				components.queryItems = [
+					URLQueryItem(name: "latitude", value: "\(result.latitude)"),
+					URLQueryItem(name: "longitude", value: "\(result.longitude)"),
+					URLQueryItem(name: "daily", value: "temperature_2m_max,temperature_2m_min"),
+					URLQueryItem(name: "timezone", value: TimeZone.autoupdatingCurrent.identifier),
+				]
+
+				let (data, _) = try await URLSession.shared.data(from: components.url!)
+				return try jsonDecoder.decode(Forecast.self, from: data)
+			},
+			search: { query in
+				var components = URLComponents(string: "https://geocoding-api.open-meteo.com/v1/search")!
+				components.queryItems = [URLQueryItem(name: "name", value: query)]
+
+				let (data, _) = try await URLSession.shared.data(from: components.url!)
+				return try jsonDecoder.decode(GeocodingSearch.self, from: data)
+			}
+		),
+		preview: WeatherClient(
+			forecast: { _ in .mock },
+			search: { _ in .mock }
+		)
+	)
 }
 
 // MARK: - Live API implementation
@@ -77,7 +77,7 @@ extension WeatherClient {
 @StoreDIValuesList
 extension StoreDIValues {
 
-    var weatherClient: WeatherClient = .shared
+	var weatherClient: WeatherClient = .shared
 }
 
 // MARK: - Mock data

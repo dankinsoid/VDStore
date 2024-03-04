@@ -1,6 +1,6 @@
 import Combine
 
-struct StorePublisher<Output>: Publisher {
+struct StoreBox<Output>: Publisher {
 
 	typealias Failure = Never
 
@@ -39,7 +39,7 @@ struct StorePublisher<Output>: Publisher {
     }
 
     init<T>(
-        parent: StorePublisher<T>,
+        parent: StoreBox<T>,
         get: @escaping (T) -> Output,
         set: @escaping (inout T, Output) -> Void
     ) {

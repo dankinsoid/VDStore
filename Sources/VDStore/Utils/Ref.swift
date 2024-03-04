@@ -1,5 +1,6 @@
 import Foundation
 
+/// The property wrapper for the reference to the state.
 @dynamicMemberLookup
 @propertyWrapper
 public struct Ref<State> {
@@ -22,6 +23,7 @@ public struct Ref<State> {
 		setter = set
 	}
 
+	/// Returns the reference to the substate.
 	public func scope<ChildState>(
 		get childGet: @escaping (State) -> ChildState,
 		set childSet: @escaping (inout State, ChildState) -> Void
@@ -36,6 +38,7 @@ public struct Ref<State> {
 		)
 	}
 
+	/// Returns the reference to the substate.
 	public func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Ref<ChildState> {
 		scope(
 			get: { $0[keyPath: keyPath] },
@@ -60,6 +63,7 @@ public extension Ref {
 		)
 	}
 
+	/// Returns the SwiftUI binding to the state.
 	var binding: Binding<State> {
 		Binding(get: getter, set: setter)
 	}

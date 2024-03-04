@@ -2,6 +2,10 @@
 import Combine
 import SwiftUI
 
+/// `Store` wrapper for using in SwiftUI views. Updates the view when the state changes.
+/// It can be created with initial state value or with a given store.
+///
+/// You can use `storeDIValues` `View`` modifiers to inject dependencies into the view stores.
 @available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
 @MainActor
 @propertyWrapper
@@ -47,33 +51,33 @@ public struct ViewStore<State>: DynamicProperty {
 		self.init(store: Store(wrappedValue: state))
 	}
 
-    @MainActor
-    private enum Property: DynamicProperty {
+	@MainActor
+	private enum Property: DynamicProperty {
 
-        case stateObject(StateObject<Observable>)
-        case store(Store<State>)
-    }
+		case stateObject(StateObject<Observable>)
+		case store(Store<State>)
+	}
 
 	private final class Observable: ObservableObject {
 
 		typealias ObjectWillChangePublisher = AnyPublisher<Void, Never>
 
 		let store: Store<State>
-        var objectWillChange: AnyPublisher<Void, Never> {
-            store.willSet
-        }
+		var objectWillChange: AnyPublisher<Void, Never> {
+			store.willSet
+		}
 
-        init(store: Store<State>) {
-            self.store = store
-        }
+		init(store: Store<State>) {
+			self.store = store
+		}
 	}
 }
 
 extension StoreDIValues {
 
 	var isViewStore: Bool {
-        get { self[\.isViewStore] ?? false }
-        set { self[\.isViewStore] = newValue }
+		get { self[\.isViewStore] ?? false }
+		set { self[\.isViewStore] = newValue }
 	}
 }
 
@@ -82,7 +86,7 @@ extension EnvironmentValues {
 
 	private enum DIValueKey: EnvironmentKey {
 
-        static let defaultValue: (StoreDIValues) -> StoreDIValues = { $0 }
+		static let defaultValue: (StoreDIValues) -> StoreDIValues = { $0 }
 	}
 
 	var storeDIValues: (StoreDIValues) -> StoreDIValues {
@@ -93,40 +97,39 @@ extension EnvironmentValues {
 
 public extension Store {
 
-	@available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
-	var viewStore: ViewStore<State> {
-		ViewStore(store: self)
-	}
-
+	/// SwiftUI binding to store's state.
 	var binding: Binding<State> {
-        Binding {
-            state
-        } set: {
-            state = $0
-        }
+		Binding {
+			state
+		} set: {
+			state = $0
+		}
 	}
 }
 
 @available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
 public extension View {
-    
-    func storeDIValues(_ transform: @escaping (StoreDIValues) -> StoreDIValues) -> some View {
-        transformEnvironment(\.storeDIValues) { current in
-            current = { [current] dependencies in
-                transform(current(dependencies))
-            }
-        }
-    }
 
-	func storeDIValues(_ dependencies: StoreDIValues) -> some View {
-        storeDIValues {
-            $0.merging(with: dependencies)
-        }
+	/// Injects the dependencies into the view stores.
+	func storeDIValues(_ transform: @escaping (StoreDIValues) -> StoreDIValues) -> some View {
+		transformEnvironment(\.storeDIValues) { current in
+			current = { [current] dependencies in
+				transform(current(dependencies))
+			}
+		}
 	}
 
+	/// Injects the dependencies into the view stores.
+	func storeDIValues(_ dependencies: StoreDIValues) -> some View {
+		storeDIValues {
+			$0.merging(with: dependencies)
+		}
+	}
+
+	/// Injects the dependencies into the view stores.
 	func storeDIValue<D>(_ keyPath: WritableKeyPath<StoreDIValues, D>, _ value: D) -> some View {
-        storeDIValues { deps in
-            deps.with(keyPath, value)
+		storeDIValues { deps in
+			deps.with(keyPath, value)
 		}
 	}
 }
