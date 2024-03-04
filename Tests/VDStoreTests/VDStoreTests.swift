@@ -37,7 +37,7 @@ final class VDStoreTests: XCTestCase {
     }
     
     /// Test that the publisher property of a Store sends updates when the state changes.
-    func testPublisherUpdates() {
+    func testPublisherUpdates() async {
         let initialCounter = Counter(counter: 0)
         let store = Store(initialCounter)
         let expectation = expectation(description: "State updated")
@@ -51,7 +51,7 @@ final class VDStoreTests: XCTestCase {
         .store(in: &bag)
         
         store.add()
-        waitForExpectations(timeout: 1, handler: nil)
+        await fulfillment(of: [expectation], timeout: 0.1)
     }
     
     /// Test that a Store can use a mock di correctly.

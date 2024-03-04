@@ -152,13 +152,13 @@ There is `valueFor` global method that allows you to define default values depen
 
 Create a `Package.swift` file.
 ```swift
-// swift-tools-version:5.9
+// swift-tools-version:5.7
 import PackageDescription
 
 let package = Package(
   name: "SomeProject",
   dependencies: [
-    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.14.0")
+    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.15.0")
   ],
   targets: [
     .target(name: "SomeProject", dependencies: ["VDStore"])

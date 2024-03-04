@@ -51,12 +51,12 @@ import Foundation
 ///   @ViewStore state: AppFeature
 ///
 ///   init(_ store: Store<AppFeature>) {
-/// 		_state = ViewStore(store)
-/// 	}
+///    	_state = ViewStore(store)
+///   }
 ///
 ///   init() {
-/// 		_state = ViewStore(AppFeature())
-/// 	}
+///     _state = ViewStore(AppFeature())
+///   }
 ///
 ///   var body: some View {
 ///     TabView {
