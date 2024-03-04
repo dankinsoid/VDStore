@@ -11,16 +11,12 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [macos-latest]
-        swift: ["5.7", "5.9"]
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
 
     steps:
     - uses: swift-actions/setup-swift@v1
       with:
-        swift-version: ${{ matrix.swift }}
+        swift-version: '5.9'
     - name: Get swift version
       run: swift --version
     - uses: actions/checkout@v3
