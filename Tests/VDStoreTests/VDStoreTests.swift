@@ -16,7 +16,7 @@ final class VDStoreTests: XCTestCase {
     func testStateMutation() {
         let store = Store(Counter())
         store.add()
-        
+    
         XCTAssertEqual(store.state.counter, 1)
     }
     
@@ -52,14 +52,6 @@ final class VDStoreTests: XCTestCase {
         
         store.add()
         waitForExpectations(timeout: 1, handler: nil)
-    }
-    
-    /// Test that computed properties in a Store extension return expected values based on the store’s state.
-    func testComputedProperty() {
-        let initialCounter = Counter(counter: 20)
-        let store = Store(initialCounter).property(\.step, 2)
-        
-        XCTAssertEqual(store.step, 2)
     }
     
     /// Test that a Store can use a mock di correctly.
@@ -102,6 +94,26 @@ final class VDStoreTests: XCTestCase {
         let value = await store.asyncTask()
         XCTAssertEqual(value, 6)
     }
+    
+    func testNumberOfUpdates() async {
+        let store = Store(Counter())
+        let publisher = store.publisher
+        var count = 0
+        let expectation = self.expectation(description: "Counter")
+        let cancellable = publisher
+            .sink { i in
+                count += 1
+                if i.counter == 10 {
+                    expectation.fulfill()
+                }
+            }
+        cancellable.store(in: &store.di.cancellableSet)
+        for _ in 0..<10 {
+            store.add()
+        }
+        await fulfillment(of: [expectation], timeout: 0.1)
+        XCTAssertEqual(count, 2)
+    }
 }
 
 struct Counter: Equatable {
@@ -110,13 +122,9 @@ struct Counter: Equatable {
 }
 
 extension Store<Counter> {
-    
-    var step: Int {
-        self[\.step] ?? 1
-    }
 
 	func add() {
-		state.counter += 1
+        state.counter += 1
 	}
 
 	func check<T>(_ operation: () -> T) -> T {

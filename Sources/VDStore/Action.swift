@@ -19,7 +19,7 @@ extension Store {
 }
 
 public extension Store.Action {
-    
+
     typealias Throws = Store.Action<Args, Result<Res, Error>>
     typealias Async = Store.Action<Args, Task<Res, Never>>
     typealias AsyncThrows = Store.Action<Args, Task<Res, Error>>
@@ -192,15 +192,95 @@ extension Store {
         )
         .value
     }
+
+    public func execute<Res>(
+        file: String = #fileID,
+        line: UInt = #line,
+        from function: String = #function,
+        action: @MainActor @escaping () -> Res
+    ) -> Res {
+        execute(
+            Action<Void, Res>(
+                id: StoreActionID(name: "anonymous", fileID: file, line: line),
+                action: { _, _ in
+                    action()
+                }
+            ),
+            with: (),
+            file: file,
+            line: line,
+            from: function
+        )
+    }
+
+    public func execute<Res>(
+        file: String = #fileID,
+        line: UInt = #line,
+        from function: String = #function,
+        action: @MainActor @escaping () throws -> Res
+    ) throws -> Res {
+        try execute(
+            Action<Void, Result<Res, Error>>(
+                id: StoreActionID(name: "anonymous", fileID: file, line: line),
+                action: { _ in
+                    { _ in try action() }
+                }
+            ),
+            with: (),
+            file: file,
+            line: line,
+            from: function
+        )
+    }
+
+    public func execute<Res>(
+        file: String = #fileID,
+        line: UInt = #line,
+        from function: String = #function,
+        action: @MainActor @escaping () async throws -> Res
+    ) async throws -> Res {
+        try await execute(
+            Action<Void, Task<Res, Error>>(
+                id: StoreActionID(name: "anonymous", fileID: file, line: line),
+                action: { _ in
+                    { _ in try await action() }
+                }
+            ),
+            with: (),
+            file: file,
+            line: line,
+            from: function
+        )
+    }
+
+    public func execute<Res>(
+        file: String = #fileID,
+        line: UInt = #line,
+        from function: String = #function,
+        action: @MainActor @escaping () async -> Res
+    ) async -> Res {
+        await execute(
+            Action<Void, Task<Res, Never>>(
+                id: StoreActionID(name: "anonymous", fileID: file, line: line),
+                action: { _ in
+                    { _ in await action() }
+                }
+            ),
+            with: (),
+            file: file,
+            line: line,
+            from: function
+        )
+    }
 }
 
 public struct StoreActionID: Hashable, CustomStringConvertible {
 
     public let name: String
     public let fileID: String
-    public let line: UInt8
+    public let line: UInt
 
-    public init(name: String, fileID: String, line: UInt8) {
+    public init(name: String, fileID: String, line: UInt) {
         self.name = name
         self.fileID = fileID
         self.line = line

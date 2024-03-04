@@ -28,7 +28,6 @@ public struct Store<State> {
 
     private let _publisher: StorePublisher<State>
 	private var _dependencies: StoreDIValues
-	private var values: [PartialKeyPath<Store>: Any]
 
 	public var wrappedValue: State {
 		get { state }
@@ -47,19 +46,16 @@ public struct Store<State> {
 	public nonisolated init(_ state: State) {
 		self.init(
             publisher: StorePublisher(state),
-            di: StoreDIValues(),
-            values: [:]
+            di: StoreDIValues()
 		)
 	}
 
     nonisolated init(
 		publisher: StorePublisher<State>,
-        di: StoreDIValues,
-		values: [PartialKeyPath<Store>: Any]
+        di: StoreDIValues
     ) {
         _publisher = publisher
 		_dependencies = di
-		self.values = values
 	}
 
 	public func scope<ChildState>(
@@ -68,8 +64,7 @@ public struct Store<State> {
 	) -> Store<ChildState> {
 		Store<ChildState>(
 			publisher: StorePublisher<ChildState>(parent: _publisher, get: getter, set: setter),
-            di: di,
-            values: [:]
+            di: di
 		)
 	}
 
@@ -79,17 +74,6 @@ public struct Store<State> {
         } set: {
             $0[keyPath: keyPath] = $1
         }
-	}
-
-	public func property<DIValue>(
-		_ keyPath: KeyPath<Store, DIValue>,
-		_ value: DIValue
-	) -> Store {
-		Store(
-			publisher: _publisher,
-            di: di,
-			values: values.merging([keyPath: value]) { _, new in new }
-		)
 	}
 
 	public func di<DIValue>(
@@ -106,8 +90,7 @@ public struct Store<State> {
 	) -> Store {
 		Store(
 			publisher: _publisher,
-            di: transform(_dependencies),
-			values: values
+            di: transform(_dependencies)
 		)
 	}
 
@@ -118,8 +101,7 @@ public struct Store<State> {
 		transform(&dependencies)
 		return Store(
 			publisher: _publisher,
-            di: dependencies,
-			values: values
+            di: dependencies
 		)
 	}
 
@@ -140,10 +122,6 @@ public struct Store<State> {
             _publisher.afterUpdate()
         }
     }
-
-	public subscript<Value>(_ keyPath: KeyPath<Store<State>, Value>) -> Value? {
-		values[keyPath] as? Value
-	}
 }
 
 public var suspendAllSyncStoreUpdates = true

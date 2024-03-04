@@ -2,13 +2,13 @@
 
 ## Introduction
 
-VDStore is a minimalistic iOS architecture library designed to manage application state in a clean and efficient manner. It provides a `Store` struct that enables state mutation, state subscription, di injection, and fragmentation into scopes for scaling. VDStore is compatible with both SwiftUI and UIKit.
+VDStore is a minimalistic iOS architecture library designed to manage application state in a clean and native manner. It provides a `Store` struct that enables state mutation, state subscription, di injection, and fragmentation into scopes for scaling. VDStore is compatible with both SwiftUI and UIKit.
 
 ## Features
 
 - **State Management**: Easily handle and mutate the state of your app in a structured and type-safe way.
 - **State Subscription**: Observe state changes and update your UI in a reactive manner.
-- **DIValue Injection**: Seamlessly manage dependencies and inject services as needed.
+- **Dependencies Injection**: Seamlessly manage dependencies and inject services as needed.
 - **Fragmentation into Scopes**: Efficiently break down and manage complex states by creating focused sub-stores with scoped functionality.
 
 ## Usage
@@ -24,36 +24,8 @@ struct Counter: Equatable {
 
 extension Store<Counter> {
 
-  var step: Int {
-    self[\.step] ?? 1 
-  }
-
   func add() {
-    state.counter += step
-  }
-}
-```
-
-### Using with UIKit
-
-Example of integrating `VDStore` with a `UIViewController`:
-
-```swift
-final class CounterViewController: UIViewController {
-
-  @Store var state = Counter()
-  private var bag: Set<AnyCancellable> = []
-
-  override func viewDidLoad() {
-    super.viewDidLoad()
-    $state.publisher.sink { [weak self] state in
-      self?.render(with: state)
-    }
-    .store(in: &bag)
-  }
-
-  func tapAddButton() {
-    $state.add()
+    state.counter += 1
   }
 }
 ```
@@ -78,29 +50,105 @@ struct CounterView: View {
   }
 }
 ```
+`ViewStore` is a property wrapper that automatically subscribes to state changes and updates the view. `ViewStore` can be initialized with either `Store` or `State` instances.
+
+```swift
+
+### Using with UIKit
+
+Example of integrating `VDStore` with a `UIViewController`:
+
+```swift
+final class CounterViewController: UIViewController {
+
+  @Store var state = Counter()
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    $state.publisher.sink { [weak self] state in
+      self?.render(with: state)
+    }
+    .store(in: &$state.di.cancellableSet)
+  }
+
+  func tapAddButton() {
+    $state.add()
+  }
+}
+```
+
+### Defining actions
+You can edit the state in any way you prefer, but the simplest one is extending Store.
+
+There is a helper macro called `@Actions`. `@Actions` redirect all your methods calls through your custom middlewares that allows you to intrecept all calls in runtime. For example, you can use it to log all calls or state changes. Also `@Actions` make all your `async` methods cancellable.
+```swift
+@Actions
+extension Store<Converter> {
+
+  func updateRates() async {
+    cancel(Self.updateRates)
+    state.isLoading = true
+    defer { state.isLoading = false }
+    do {
+      try await di.api.updateRates()
+      guard !Task.isCancelled else { return }
+      ...
+    } catch {
+      ...
+    }
+  }
+}
+
+```
+
+```swift 
 
 ### Adding Dependencies
 
-How to define and inject dependencies:
-
+To define a dependency you should extend `StoreDIValues` with a computed property like this:
 ```swift
 extension StoreDIValues {
 
    public var someService: SomeService {
-      self[\.someService] ?? SomeService.shared
+      get { self[\.someService] ?? SomeService.shared }
+      set { self[\.someService] = newValue }
    }
 }
+```
+Or you can use on of two macros:
+```swift
+extension StoreDIValues {
 
+   @StoreDIValue
+   public var someService: SomeService = .shared
+}
+```
+```swift
+@StoreDIValuesList
+extension StoreDIValues {
+
+   public var someService1: SomeService1 = .shared
+   public var someService2: SomeService2 = .shared
+}
+```
+To inject a dependency you should use `di` method:
+```swift
 func getSomeChildStore(store: Store<Counter>) -> Store<Int> {
    store
      .scope(\.counter)
      .di(\.someService, SomeService())
 }
 ```
+To use a dependency you should use `di` property:
+```swift
+store.di.someService.someMethod()
+```
+There is `defaultValueFor` global method that allows you to define default values depending on the environment: live, test or preview.
+```swift
 
 ## Requirements
 
-- Swift 5.0+
+- Swift 5.9+
 - iOS 13.0+
 
 ## Installation
@@ -109,13 +157,13 @@ func getSomeChildStore(store: Store<Counter>) -> Store<Int> {
 
 Create a `Package.swift` file.
 ```swift
-// swift-tools-version:5.7
+// swift-tools-version:5.9
 import PackageDescription
 
 let package = Package(
   name: "SomeProject",
   dependencies: [
-    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.10.0")
+    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.11.0")
   ],
   targets: [
     .target(name: "SomeProject", dependencies: ["VDStore"])
