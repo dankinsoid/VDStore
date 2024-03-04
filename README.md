@@ -52,8 +52,6 @@ struct CounterView: View {
 ```
 `ViewStore` is a property wrapper that automatically subscribes to state changes and updates the view. `ViewStore` can be initialized with either `Store` or `State` instances.
 
-```swift
-
 ### Using with UIKit
 
 Example of integrating `VDStore` with a `UIViewController`:
@@ -163,7 +161,7 @@ import PackageDescription
 let package = Package(
   name: "SomeProject",
   dependencies: [
-    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.11.0")
+    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.12.0")
   ],
   targets: [
     .target(name: "SomeProject", dependencies: ["VDStore"])
