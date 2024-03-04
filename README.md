@@ -99,8 +99,6 @@ extension Store<Converter> {
 
 ```
 
-```swift 
-
 ### Adding Dependencies
 
 To define a dependency you should extend `StoreDIValues` with a computed property like this:
@@ -142,7 +140,6 @@ To use a dependency you should use `di` property:
 store.di.someService.someMethod()
 ```
 There is `defaultValueFor` global method that allows you to define default values depending on the environment: live, test or preview.
-```swift
 
 ## Requirements
 
@@ -161,7 +158,7 @@ import PackageDescription
 let package = Package(
   name: "SomeProject",
   dependencies: [
-    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.12.0")
+    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.13.0")
   ],
   targets: [
     .target(name: "SomeProject", dependencies: ["VDStore"])
