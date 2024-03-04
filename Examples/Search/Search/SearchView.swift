@@ -14,7 +14,7 @@ struct SearchView: View {
 	@ViewStore var state = Search()
 
 	var body: some View {
-        NavigationStack {
+		NavigationStack {
 			VStack(alignment: .leading) {
 				Text(readMe)
 					.padding()
@@ -39,9 +39,9 @@ struct SearchView: View {
 					ForEach(state.results) { location in
 						VStack(alignment: .leading) {
 							Button {
-                                Task {
-                                    await $state.searchResultTapped(location: location)
-                                }
+								Task {
+									await $state.searchResultTapped(location: location)
+								}
 							} label: {
 								HStack {
 									Text(location.name)
@@ -68,7 +68,7 @@ struct SearchView: View {
 			.navigationTitle("Search")
 		}
 		.task(id: state.searchQuery) {
-            await $state.searchQueryChangeDebounced()
+			await $state.searchQueryChangeDebounced()
 		}
 	}
 

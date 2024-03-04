@@ -9,11 +9,11 @@ import SwiftSyntaxMacros
 
 @main
 struct VDStoreMacrosPlugin: CompilerPlugin {
-    
-    let providingMacros: [Macro.Type] = [
-        ActionsMacro.self,
-        StoreDIValueMacro.self,
-        StoreDIValuesMacro.self
-    ]
+
+	let providingMacros: [Macro.Type] = [
+		ActionsMacro.self,
+		StoreDIValueMacro.self,
+		StoreDIValuesMacro.self,
+	]
 }
 #endif

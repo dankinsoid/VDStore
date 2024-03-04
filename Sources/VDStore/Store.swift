@@ -116,7 +116,7 @@ public struct Store<State> {
 	}
 
 	/// The publisher that emits before the state is going to be changed. Required by `SwiftUI`.
-    nonisolated var willSet: AnyPublisher<Void, Never> {
+	nonisolated var willSet: AnyPublisher<Void, Never> {
 		box.willSet.eraseToAnyPublisher()
 	}
 
@@ -141,7 +141,7 @@ public struct Store<State> {
 	/// Creates a new `Store` with the initial state.
 	public nonisolated init(_ state: State) {
 		self.init(
-            box: StoreBox(state),
+			box: StoreBox(state),
 			di: StoreDIValues()
 		)
 	}
@@ -150,7 +150,7 @@ public struct Store<State> {
 		box: StoreBox<State>,
 		di: StoreDIValues
 	) {
-        self.box = box
+		self.box = box
 		diStorage = di
 	}
 
@@ -187,7 +187,7 @@ public struct Store<State> {
 		set setter: @escaping (inout State, ChildState) -> Void
 	) -> Store<ChildState> {
 		Store<ChildState>(
-            box: StoreBox<ChildState>(parent: box, get: getter, set: setter),
+			box: StoreBox<ChildState>(parent: box, get: getter, set: setter),
 			di: di
 		)
 	}

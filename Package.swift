@@ -18,6 +18,6 @@ let package = Package(
 	],
 	targets: [
 		.target(name: "VDStore", dependencies: []),
-        .testTarget(name: "VDStoreTests", dependencies: ["VDStore"]),
+		.testTarget(name: "VDStoreTests", dependencies: ["VDStore"]),
 	]
 )
