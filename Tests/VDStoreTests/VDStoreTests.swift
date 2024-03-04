@@ -95,7 +95,6 @@ final class VDStoreTests: XCTestCase {
         let value = await store.asyncTask()
         XCTAssertEqual(value, 6)
     }
-#endif
     
     func testNumberOfUpdates() async {
         let store = Store(Counter())
@@ -116,6 +115,7 @@ final class VDStoreTests: XCTestCase {
         await fulfillment(of: [expectation], timeout: 0.1)
         XCTAssertEqual(count, 2)
     }
+#endif
 }
 
 struct Counter: Equatable {
