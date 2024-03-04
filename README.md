@@ -143,7 +143,7 @@ There is `valueFor` global method that allows you to define default values depen
 
 ## Requirements
 
-- Swift 5.9+
+- Swift 5.7+
 - iOS 13.0+
 
 ## Installation
