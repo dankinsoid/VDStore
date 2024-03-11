@@ -32,7 +32,7 @@ final class VDStoreTests: XCTestCase {
 	func testScopedStoreInheritsDependencies() {
 		let service: SomeService = MockSomeService()
 		let parentStore = Store(Counter()).di(\.someService, service)
-		let childStore = parentStore.scope(\.counter)
+		let childStore = parentStore.counter
 		XCTAssert(childStore.di.someService === service)
 	}
 
@@ -69,6 +69,24 @@ final class VDStoreTests: XCTestCase {
 		}
 		.value
 		XCTAssertEqual(value, 6)
+	}
+
+	func testUpdate() {
+		let store = Store(Counter())
+		let publisher = store.publisher
+		var count = 0
+		let cancellable = publisher
+			.sink { _ in
+				count += 1
+			}
+		cancellable.store(in: &store.di.cancellableSet)
+		store.update {
+			for _ in 0 ..< 10 {
+				store.add()
+			}
+		}
+		XCTAssertEqual(store.state.counter, 10)
+		XCTAssertEqual(count, 2)
 	}
 
 	#if swift(>=5.9)
@@ -114,6 +132,19 @@ final class VDStoreTests: XCTestCase {
 		}
 		await fulfillment(of: [expectation], timeout: 0.1)
 		XCTAssertEqual(count, 2)
+	}
+
+	func testOnChange() async {
+		let expectation = expectation(description: "Counter")
+		let store = Store(Counter()).onChange(of: \.counter) { _, _, state in
+			state.counter += 1
+		}
+		store.add()
+		DispatchQueue.main.async {
+			expectation.fulfill()
+		}
+		await fulfillment(of: [expectation], timeout: 0.1)
+		XCTAssertEqual(store.state.counter, 2)
 	}
 	#endif
 }

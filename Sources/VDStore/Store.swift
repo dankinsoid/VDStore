@@ -25,10 +25,11 @@ import Foundation
 ///
 /// ### Scoping
 ///
-/// The most important operation defined on ``Store`` is the ``scope(get:set:)`` or ``scope(_ keyPayh:)`` method,
+/// The most important operation defined on ``Store`` is the ``scope(get:set:)`` or ``scope(_ keyPayh:)`` methods,
 /// which allows you to transform a store into one that deals with child state. This is
 /// necessary for passing stores to subviews that only care about a small portion of the entire
 /// application's domain.
+/// The store supports dynamic member lookup so that you can scope with a specific field in the state.
 ///
 /// For example, if an application has a tab view at its root with tabs for activity, search, and
 /// profile, then we can model the domain like this:
@@ -61,17 +62,17 @@ import Foundation
 ///   var body: some View {
 ///     TabView {
 ///       ActivityView(
-///         $state.scope(\.activity)
+///         $state.activity
 ///       )
 ///       .tabItem { Text("Activity") }
 ///
 ///       SearchView(
-///         $state.scope(\.search)
+///         $state.search
 ///       )
 ///       .tabItem { Text("Search") }
 ///
 ///       ProfileView(
-///         $state.scope(\.profile)
+///         $state.profile
 ///       )
 ///       .tabItem { Text("Profile") }
 ///     }
@@ -84,17 +85,13 @@ import Foundation
 /// The `Store` class is isolated to main thread by @MainActor attribute.
 @MainActor
 @propertyWrapper
+@dynamicMemberLookup
 public struct Store<State> {
 
 	/// The state of the store.
 	public var state: State {
 		get { box.state }
-		nonmutating set {
-			if suspendAllSyncStoreUpdates, !box.isUpdating {
-				suspendSyncUpdates()
-			}
-			box.state = newValue
-		}
+		nonmutating set { box.state = newValue }
 	}
 
 	/// Injected dependencies.
@@ -104,8 +101,7 @@ public struct Store<State> {
 
 	/// A publisher that emits when state changes.
 	///
-	/// This publisher supports dynamic member lookup so that you can pluck out a specific field in
-	/// the state:
+	/// This publisher supports dynamic member lookup so that you can pluck out a specific field in the state:
 	///
 	/// ```swift
 	/// store.publisher.alert
@@ -171,7 +167,11 @@ public struct Store<State> {
 	/// // Construct a login view by scoping the store
 	/// // to one that works with only login domain.
 	/// LoginView(
-	///   store.scope(state: \.login)
+	///   store.scope {
+	///     $0.login
+	///   } set: {
+	///     $0.login = $1
+	///   }
 	/// )
 	/// ```
 	///
@@ -217,7 +217,7 @@ public struct Store<State> {
 	/// `LoginView` could be extracted to a module that has no access to `AppFeature`.
 	///
 	/// - Parameters:
-	///   - state: A writable key path from `State` to `ChildState`.
+	///   - keyPath: A writable key path from `State` to `ChildState`.
 	/// - Returns: A new store with its state transformed.
 	public func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Store<ChildState> {
 		scope {
@@ -225,6 +225,39 @@ public struct Store<State> {
 		} set: {
 			$0[keyPath: keyPath] = $1
 		}
+	}
+
+	/// Scopes the store to one that exposes child state.
+	///
+	/// This can be useful for deriving new stores to hand to child views in an application. For
+	/// example:
+	///
+	/// ```swift
+	/// struct AppFeature {
+	///   var login: Login.State
+	///   // ...
+	/// }
+	///
+	/// // A store that runs the entire application.
+	/// let store = Store(AppFeature())
+	///
+	/// // Construct a login view by scoping the store
+	/// // to one that works with only login domain.
+	/// LoginView(
+	///   store.login
+	/// )
+	/// ```
+	///
+	/// Scoping in this fashion allows you to better modularize your application. In this case,
+	/// `LoginView` could be extracted to a module that has no access to `AppFeature`.
+	///
+	/// - Parameters:
+	///   - keyPath: A writable key path from `State` to `ChildState`.
+	/// - Returns: A new store with its state transformed.
+	public subscript<ChildState>(
+		dynamicMember keyPath: WritableKeyPath<State, ChildState>
+	) -> Store<ChildState> {
+		scope(keyPath)
 	}
 
 	/// Injects the given value into the store's.
@@ -265,19 +298,24 @@ public struct Store<State> {
 
 	/// Suspends the store from updating the UI until the block returns.
 	public func update<T>(_ update: () throws -> T) rethrows -> T {
-		if !suspendAllSyncStoreUpdates, !box.isUpdating {
-			defer { box.afterUpdate() }
-			box.beforeUpdate()
-		}
+		defer { box.afterUpdate() }
+		box.beforeUpdate()
 		let result = try update()
 		return result
 	}
+}
 
-	/// Suspends the store from updating the UI while all synchronous operations are being performed.
-	public func suspendSyncUpdates() {
-		box.beforeUpdate()
-		DispatchQueue.main.async { [box] in
-			box.afterUpdate()
+public extension Store where State: MutableCollection {
+
+	subscript(_ index: State.Index) -> Store<State.Element> {
+		scope(index)
+	}
+
+	func scope(_ index: State.Index) -> Store<State.Element> {
+		scope {
+			$0[index]
+		} set: {
+			$0[index] = $1
 		}
 	}
 }

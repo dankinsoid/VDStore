@@ -2,7 +2,9 @@
 
 ## Introduction
 
-VDStore is a minimalistic iOS architecture library designed to manage application state in a clean and native manner. It provides a `Store` struct that enables state mutation, state subscription, di injection, and fragmentation into scopes for scaling. VDStore is compatible with both SwiftUI and UIKit.
+VDStore is a minimalistic iOS architecture library designed to manage application state in a clean and native manner.
+It provides a `Store` struct that enables state mutation, state subscription, di injection, and fragmentation into scopes for scaling.
+VDStore is compatible with both SwiftUI and UIKit.
 
 ## Features
 
@@ -50,7 +52,8 @@ struct CounterView: View {
   }
 }
 ```
-`ViewStore` is a property wrapper that automatically subscribes to state changes and updates the view. `ViewStore` can be initialized with either `Store` or `State` instances.
+`ViewStore` is a property wrapper that automatically subscribes to state changes and updates the view.
+`ViewStore` can be initialized with either `Store` or `State` instances.
 
 ### Using with UIKit
 
@@ -78,7 +81,10 @@ final class CounterViewController: UIViewController {
 ### Defining actions
 You can edit the state in any way you prefer, but the simplest one is extending Store.
 
-There is a helper macro called `@Actions`. `@Actions` redirect all your methods calls through your custom middlewares that allows you to intrecept all calls in runtime. For example, you can use it to log all calls or state changes. Also `@Actions` make all your `async` methods cancellable.
+There is a helper macro called `@Actions`.
+`@Actions` redirect all your methods calls through your custom middlewares that allows you to intrecept all calls in runtime.
+For example, you can use it to log all calls or state changes.
+Also `@Actions` make all your `async` methods cancellable.
 ```swift
 @Actions
 extension Store<Converter> {
@@ -158,7 +164,7 @@ import PackageDescription
 let package = Package(
   name: "SomeProject",
   dependencies: [
-    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.18.0")
+    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.19.0")
   ],
   targets: [
     .target(name: "SomeProject", dependencies: ["VDStore"])
