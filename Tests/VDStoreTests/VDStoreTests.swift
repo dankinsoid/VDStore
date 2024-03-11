@@ -33,6 +33,7 @@ final class VDStoreTests: XCTestCase {
 		let service: SomeService = MockSomeService()
 		let parentStore = Store(Counter()).di(\.someService, service)
 		let childStore = parentStore.counter
+		XCTAssert(parentStore.di.someService === service)
 		XCTAssert(childStore.di.someService === service)
 	}
 

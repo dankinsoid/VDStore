@@ -96,7 +96,7 @@ public struct Store<State> {
 
 	/// Injected dependencies.
 	public var di: StoreDIValues {
-		diStorage.with(store: self)
+		diModifier(StoreDIValues().with(store: self))
 	}
 
 	/// A publisher that emits when state changes.
@@ -117,7 +117,7 @@ public struct Store<State> {
 	}
 
 	private let box: StoreBox<State>
-	private var diStorage: StoreDIValues
+	private let diModifier: (StoreDIValues) -> StoreDIValues
 
 	public var wrappedValue: State {
 		get { state }
@@ -136,18 +136,15 @@ public struct Store<State> {
 
 	/// Creates a new `Store` with the initial state.
 	public nonisolated init(_ state: State) {
-		self.init(
-			box: StoreBox(state),
-			di: StoreDIValues()
-		)
+		self.init(box: StoreBox(state))
 	}
 
 	nonisolated init(
 		box: StoreBox<State>,
-		di: StoreDIValues
+		di: @escaping (StoreDIValues) -> StoreDIValues = { $0 }
 	) {
 		self.box = box
-		diStorage = di
+		diModifier = di
 	}
 
 	/// Scopes the store to one that exposes child state.
@@ -188,7 +185,7 @@ public struct Store<State> {
 	) -> Store<ChildState> {
 		Store<ChildState>(
 			box: StoreBox<ChildState>(parent: box, get: getter, set: setter),
-			di: di
+			di: { [self] in diModifier($0).with(store: self) }
 		)
 	}
 
@@ -279,9 +276,11 @@ public struct Store<State> {
 	///  - transform: A closure that transforms the store's dependencies.
 	/// - Returns: A new store with the transformed dependencies.
 	public func transformDI(
-		_ transform: (StoreDIValues) -> StoreDIValues
+		_ transform: @escaping (StoreDIValues) -> StoreDIValues
 	) -> Store {
-		Store(box: box, di: transform(diStorage))
+		Store(box: box) { [diModifier] in
+			transform(diModifier($0))
+		}
 	}
 
 	/// Transforms the store's injected dependencies.
@@ -289,11 +288,13 @@ public struct Store<State> {
 	///  - transform: A closure that transforms the store's dependencies.
 	/// - Returns: A new store with the transformed dependencies.
 	public func transformDI(
-		_ transform: (inout StoreDIValues) -> Void
+		_ transform: @escaping (inout StoreDIValues) -> Void
 	) -> Store {
-		var dependencies = diStorage
-		transform(&dependencies)
-		return Store(box: box, di: dependencies)
+		transformDI {
+			var result = $0
+			transform(&result)
+			return result
+		}
 	}
 
 	/// Suspends the store from updating the UI until the block returns.
