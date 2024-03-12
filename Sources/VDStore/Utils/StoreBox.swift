@@ -62,32 +62,32 @@ private final class StoreRootBox<State>: Publisher {
 						suspendSyncUpdates()
 					}
 				} else {
-					willSet.send()
+					willSetSubject.send()
 				}
 			}
 		}
 		didSet {
 			if updatesCounter == 0, asyncUpdatesCounter == 0 {
-				didSet.send()
+                didSetSubject.send()
 			}
 		}
 	}
 
 	var willSetPublisher: AnyPublisher<Void, Never> {
-		willSet.eraseToAnyPublisher()
+        willSetSubject.eraseToAnyPublisher()
 	}
 
 	private var updatesCounter = 0
 	private var asyncUpdatesCounter = 0
-	private let willSet = PassthroughSubject<Void, Never>()
-	private let didSet = PassthroughSubject<Void, Never>()
+	private let willSetSubject = PassthroughSubject<Void, Never>()
+	private let didSetSubject = PassthroughSubject<Void, Never>()
 
 	init(_ state: State) {
 		self.state = state
 	}
 
 	func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Output == S.Input {
-		didSet
+        didSetSubject
 			.compactMap { [weak self] in self?.state }
 			.prepend(state)
 			.receive(subscriber: subscriber)
@@ -95,7 +95,7 @@ private final class StoreRootBox<State>: Publisher {
 
 	func startUpdate() {
 		if updatesCounter == 0, asyncUpdatesCounter == 0 {
-			willSet.send()
+			willSetSubject.send()
 		}
 		updatesCounter &+= 1
 	}
@@ -103,10 +103,10 @@ private final class StoreRootBox<State>: Publisher {
 	func endUpdate() {
 		updatesCounter &-= 1
 		guard updatesCounter == 0 else { return }
-		didSet.send()
+        didSetSubject.send()
 
 		if asyncUpdatesCounter > 0 {
-			willSet.send()
+            willSetSubject.send()
 		}
 	}
 
@@ -119,7 +119,7 @@ private final class StoreRootBox<State>: Publisher {
 
 	private func startAsyncUpdate() {
 		if asyncUpdatesCounter == 0 {
-			willSet.send()
+            willSetSubject.send()
 		}
 		asyncUpdatesCounter &+= 1
 	}
@@ -127,7 +127,7 @@ private final class StoreRootBox<State>: Publisher {
 	private func endAsyncUpdate() {
 		asyncUpdatesCounter &-= 1
 		if asyncUpdatesCounter == 0 {
-			didSet.send()
+            didSetSubject.send()
 		}
 	}
 }
