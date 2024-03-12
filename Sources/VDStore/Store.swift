@@ -299,8 +299,8 @@ public struct Store<State> {
 
 	/// Suspends the store from updating the UI until the block returns.
 	public func update<T>(_ update: () throws -> T) rethrows -> T {
-		defer { box.afterUpdate() }
-		box.beforeUpdate()
+		defer { box.endUpdate() }
+		box.startUpdate()
 		let result = try update()
 		return result
 	}

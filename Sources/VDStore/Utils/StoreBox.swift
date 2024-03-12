@@ -11,8 +11,8 @@ struct StoreBox<Output>: Publisher {
 	}
 
 	let willSet: AnyPublisher<Void, Never>
-	let beforeUpdate: () -> Void
-	let afterUpdate: () -> Void
+	let startUpdate: () -> Void
+	let endUpdate: () -> Void
 	private let getter: () -> Output
 	private let setter: (Output) -> Void
 	private let valuePublisher: AnyPublisher<Output, Never>
@@ -23,8 +23,8 @@ struct StoreBox<Output>: Publisher {
 		valuePublisher = rootBox.eraseToAnyPublisher()
 		getter = { rootBox.state }
 		setter = { rootBox.state = $0 }
-		beforeUpdate = rootBox.beforeUpdate
-		afterUpdate = rootBox.afterUpdate
+		startUpdate = rootBox.startUpdate
+		endUpdate = rootBox.endUpdate
 	}
 
 	init<T>(
@@ -40,8 +40,8 @@ struct StoreBox<Output>: Publisher {
 			set(&state, $0)
 			parent.setter(state)
 		}
-		beforeUpdate = parent.beforeUpdate
-		afterUpdate = parent.afterUpdate
+		startUpdate = parent.startUpdate
+		endUpdate = parent.endUpdate
 	}
 
 	func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Output == S.Input {
@@ -55,56 +55,79 @@ private final class StoreRootBox<State>: Publisher {
 	typealias Failure = Never
 
 	var state: State {
-		get { subject.value }
-		set {
-			if suspendAllSyncStoreUpdates, updatesCounter == 0 {
-				suspendSyncUpdates()
-			} else if updatesCounter == 0 {
-				willSet.send()
+		willSet {
+			if updatesCounter == 0 {
+				if suspendAllSyncStoreUpdates {
+					if asyncUpdatesCounter == 0 {
+						suspendSyncUpdates()
+					}
+				} else {
+					willSet.send()
+				}
 			}
-			subject.value = newValue
+		}
+		didSet {
+			if updatesCounter == 0, asyncUpdatesCounter == 0 {
+				didSet.send()
+			}
 		}
 	}
 
-	var willSetPublisher: AnyPublisher<Void, Never> { publisher(willSet) }
+	var willSetPublisher: AnyPublisher<Void, Never> {
+		willSet.eraseToAnyPublisher()
+	}
 
 	private var updatesCounter = 0
+	private var asyncUpdatesCounter = 0
 	private let willSet = PassthroughSubject<Void, Never>()
-	private let subject: CurrentValueSubject<State, Never>
+	private let didSet = PassthroughSubject<Void, Never>()
 
 	init(_ state: State) {
-		subject = CurrentValueSubject(state)
+		self.state = state
 	}
 
 	func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Output == S.Input {
-		publisher(subject).receive(subscriber: subscriber)
+		didSet
+			.compactMap { [weak self] in self?.state }
+			.prepend(state)
+			.receive(subscriber: subscriber)
 	}
 
-	private func publisher<P: Publisher>(_ publisher: P) -> AnyPublisher<P.Output, P.Failure> {
-		publisher.filter { [weak self] _ in
-			self?.updatesCounter == 0
-		}
-		.eraseToAnyPublisher()
-	}
-
-	private func suspendSyncUpdates() {
-		beforeUpdate()
-		DispatchQueue.main.async { [self] in
-			afterUpdate()
-		}
-	}
-
-	func beforeUpdate() {
-		if updatesCounter == 0 {
+	func startUpdate() {
+		if updatesCounter == 0, asyncUpdatesCounter == 0 {
 			willSet.send()
 		}
 		updatesCounter &+= 1
 	}
 
-	func afterUpdate() {
+	func endUpdate() {
 		updatesCounter &-= 1
-		if updatesCounter == 0 {
-			subject.value = state
+		guard updatesCounter == 0 else { return }
+		didSet.send()
+
+		if asyncUpdatesCounter > 0 {
+			willSet.send()
+		}
+	}
+
+	private func suspendSyncUpdates() {
+		startAsyncUpdate()
+		DispatchQueue.main.async { [self] in
+			endAsyncUpdate()
+		}
+	}
+
+	private func startAsyncUpdate() {
+		if asyncUpdatesCounter == 0 {
+			willSet.send()
+		}
+		asyncUpdatesCounter &+= 1
+	}
+
+	private func endAsyncUpdate() {
+		asyncUpdatesCounter &-= 1
+		if asyncUpdatesCounter == 0 {
+			didSet.send()
 		}
 	}
 }

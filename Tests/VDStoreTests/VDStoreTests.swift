@@ -96,14 +96,14 @@ final class VDStoreTests: XCTestCase {
 		let initialCounter = Counter(counter: 0)
 		let store = Store(initialCounter)
 		let expectation = expectation(description: "State updated")
-		var bag = Set<AnyCancellable>()
 
 		store.publisher.sink { newState in
 			if newState.counter == 1 {
 				expectation.fulfill()
+				store.di.cancellableSet = []
 			}
 		}
-		.store(in: &bag)
+		.store(in: &store.di.cancellableSet)
 
 		store.add()
 		await fulfillment(of: [expectation], timeout: 0.1)
@@ -118,21 +118,30 @@ final class VDStoreTests: XCTestCase {
 	func testNumberOfUpdates() async {
 		let store = Store(Counter())
 		let publisher = store.publisher
-		var count = 0
+		var updatesCount = 0
+		var willSetCount = 0
 		let expectation = expectation(description: "Counter")
-		let cancellable = publisher
+		publisher
 			.sink { i in
-				count += 1
+				updatesCount += 1
 				if i.counter == 10 {
 					expectation.fulfill()
+					store.di.cancellableSet = []
 				}
 			}
-		cancellable.store(in: &store.di.cancellableSet)
+			.store(in: &store.di.cancellableSet)
+		store.willSet
+			.sink { _ in
+				willSetCount += 1
+			}
+			.store(in: &store.di.cancellableSet)
 		for _ in 0 ..< 10 {
 			store.add()
 		}
+		XCTAssertEqual(willSetCount, 1)
+		XCTAssertEqual(updatesCount, 1)
 		await fulfillment(of: [expectation], timeout: 0.1)
-		XCTAssertEqual(count, 2)
+		XCTAssertEqual(updatesCount, 2)
 	}
 
 	func testOnChange() async {
@@ -146,6 +155,72 @@ final class VDStoreTests: XCTestCase {
 		}
 		await fulfillment(of: [expectation], timeout: 0.1)
 		XCTAssertEqual(store.state.counter, 2)
+	}
+
+	func testSyncUpdateInAsyncUpdate() async {
+		let store = Store(Counter())
+		let publisher = store.publisher
+		var updatesCount = 0
+		var willSetCount = 0
+		let expectation = expectation(description: "Counter")
+		publisher
+			.sink { i in
+				updatesCount += 1
+				if i.counter == 10 {
+					expectation.fulfill()
+					store.di.cancellableSet = []
+				}
+			}
+			.store(in: &store.di.cancellableSet)
+		store.willSet
+			.sink { _ in
+				willSetCount += 1
+			}
+			.store(in: &store.di.cancellableSet)
+		store.add()
+		store.update {
+			for _ in 0 ..< 8 {
+				store.add()
+			}
+		}
+		XCTAssertEqual(updatesCount, 2)
+		store.add()
+		XCTAssertEqual(willSetCount, 2)
+		await fulfillment(of: [expectation], timeout: 0.1)
+		XCTAssertEqual(updatesCount, 3)
+	}
+
+	func testAsyncUpdateInSyncUpdate() async {
+		let store = Store(Counter())
+		let publisher = store.publisher
+		var updatesCount = 0
+		var willSetCount = 0
+		let expectation = expectation(description: "Counter")
+		publisher
+			.sink { i in
+				updatesCount += 1
+				if i.counter == 10 {
+					expectation.fulfill()
+					store.di.cancellableSet = []
+				}
+			}
+			.store(in: &store.di.cancellableSet)
+		store.willSet
+			.sink { _ in
+				willSetCount += 1
+			}
+			.store(in: &store.di.cancellableSet)
+		store.update {
+			store.add()
+			for _ in 0 ..< 8 {
+				store.add()
+			}
+			store.add()
+		}
+		XCTAssertEqual(willSetCount, 1)
+		XCTAssertEqual(updatesCount, 2)
+		await fulfillment(of: [expectation], timeout: 0.1)
+		XCTAssertEqual(updatesCount, 2)
 	}
 	#endif
 }
