@@ -16,7 +16,7 @@ public struct ViewStore<State>: DynamicProperty {
 
 	public var wrappedValue: State {
 		get { projectedValue.state }
-		set { projectedValue.state = newValue }
+		nonmutating set { projectedValue.state = newValue }
 	}
 
 	public var projectedValue: Store<State> {

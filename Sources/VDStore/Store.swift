@@ -25,7 +25,7 @@ import Foundation
 ///
 /// ### Scoping
 ///
-/// The most important operation defined on ``Store`` is the ``scope(get:set:)`` or ``scope(_ keyPayh:)`` methods,
+/// The most important operation defined on ``Store`` is the ``scope(get:set:)`` or ``scope(_ keyPath:)`` methods,
 /// which allows you to transform a store into one that deals with child state. This is
 /// necessary for passing stores to subviews that only care about a small portion of the entire
 /// application's domain.
@@ -62,17 +62,17 @@ import Foundation
 ///   var body: some View {
 ///     TabView {
 ///       ActivityView(
-///         $state.activity
+///         $state.activity // same as $state.scope(\.activity)
 ///       )
 ///       .tabItem { Text("Activity") }
 ///
 ///       SearchView(
-///         $state.search
+///         $state.search // same as $state.scope(\.search)
 ///       )
 ///       .tabItem { Text("Search") }
 ///
 ///       ProfileView(
-///         $state.profile
+///         $state.profile // same as $state.scope(\.profile)
 ///       )
 ///       .tabItem { Text("Profile") }
 ///     }
@@ -206,7 +206,7 @@ public struct Store<State> {
 	/// // Construct a login view by scoping the store
 	/// // to one that works with only login domain.
 	/// LoginView(
-	///   store.scope(state: \.login)
+	///   store.scope(\.login)
 	/// )
 	/// ```
 	///
@@ -299,8 +299,8 @@ public struct Store<State> {
 
 	/// Suspends the store from updating the UI until the block returns.
 	public func update<T>(_ update: () throws -> T) rethrows -> T {
+        box.startUpdate()
 		defer { box.endUpdate() }
-		box.startUpdate()
 		let result = try update()
 		return result
 	}

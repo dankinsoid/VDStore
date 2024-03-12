@@ -164,7 +164,7 @@ import PackageDescription
 let package = Package(
   name: "SomeProject",
   dependencies: [
-    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.22.0")
+    .package(url: "https://github.com/dankinsoid/VDStore.git", from: "0.23.0")
   ],
   targets: [
     .target(name: "SomeProject", dependencies: ["VDStore"])

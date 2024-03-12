@@ -23,7 +23,7 @@ struct SearchView: View {
 					Image(systemName: "magnifyingglass")
 					TextField(
 						"New York, San Francisco, ...",
-						text: Binding {
+                        text: Binding {
 							state.searchQuery
 						} set: { text in
 							$state.searchQueryChanged(query: text)
