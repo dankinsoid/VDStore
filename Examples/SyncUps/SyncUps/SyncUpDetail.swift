@@ -1,8 +1,8 @@
-import ComposableArchitecture
+import VDStore
 import SwiftUI
 
 @Reducer
-struct SyncUpDetail {
+struct SyncUpDetail: Equatable {
   @Reducer(state: .equatable)
   enum Destination {
     case alert(AlertState<Alert>)

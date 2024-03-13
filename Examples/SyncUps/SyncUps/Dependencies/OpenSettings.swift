@@ -1,19 +1,16 @@
-import Dependencies
+import VDStore
 import UIKit
 
-extension DependencyValues {
+extension StoreDIValues {
+
   var openSettings: @Sendable () async -> Void {
-    get { self[OpenSettingsKey.self] }
-    set { self[OpenSettingsKey.self] = newValue }
+    get { self[\.openSettings] ?? Self.openSettings }
+    set { self[\.openSettings] = newValue }
   }
 
-  private enum OpenSettingsKey: DependencyKey {
-    typealias Value = @Sendable () async -> Void
-
-    static let liveValue: @Sendable () async -> Void = {
-      await MainActor.run {
-        UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
-      }
+  private static let openSettings: @Sendable () async -> Void = {
+        await MainActor.run {
+            UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!)
+        }
     }
-  }
 }

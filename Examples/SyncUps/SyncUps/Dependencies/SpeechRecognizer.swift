@@ -1,20 +1,18 @@
-import ComposableArchitecture
+import VDStore
 @preconcurrency import Speech
 
-@DependencyClient
 struct SpeechClient {
+
   var authorizationStatus: @Sendable () -> SFSpeechRecognizerAuthorizationStatus = { .denied }
-  var requestAuthorization: @Sendable () async -> SFSpeechRecognizerAuthorizationStatus = {
-    .denied
-  }
+  var requestAuthorization: @Sendable () async -> SFSpeechRecognizerAuthorizationStatus = { .denied }
   var startTask:
     @Sendable (_ request: SFSpeechAudioBufferRecognitionRequest) async -> AsyncThrowingStream<
       SpeechRecognitionResult, Error
-    > = { _ in .finished() }
+    > = { _ in AsyncThrowingStream { nil } }
 }
 
-extension SpeechClient: DependencyKey {
-  static var liveValue: SpeechClient {
+extension SpeechClient {
+  static let liveValue: SpeechClient = {
     let speech = Speech()
     return SpeechClient(
       authorizationStatus: { SFSpeechRecognizer.authorizationStatus() },
@@ -29,9 +27,9 @@ extension SpeechClient: DependencyKey {
         await speech.startTask(request: request)
       }
     )
-  }
+  }()
 
-  static var previewValue: SpeechClient {
+  static let previewValue: SpeechClient = {
     let isRecording = ActorIsolated(false)
     return Self(
       authorizationStatus: { .authorized },
@@ -70,7 +68,7 @@ extension SpeechClient: DependencyKey {
         }
       }
     )
-  }
+  }()
 
   static let testValue = SpeechClient()
 
@@ -103,11 +101,23 @@ extension SpeechClient: DependencyKey {
   }
 }
 
-extension DependencyValues {
-  var speechClient: SpeechClient {
-    get { self[SpeechClient.self] }
-    set { self[SpeechClient.self] = newValue }
-  }
+final actor ActorIsolated<T> {
+    
+    var value: T
+    
+    init(_ value: T) {
+        self.value = value
+    }
+    
+    func `set`(_ value: T) {
+        self.value = value
+    }
+}
+
+extension StoreDIValues {
+
+  @StoreDIValue
+  var speechClient: SpeechClient = valueFor(live: .liveValue, test: .testValue, preview: .previewValue)
 }
 
 struct SpeechRecognitionResult: Equatable {

@@ -1,17 +1,17 @@
-import IdentifiedCollections
 import SwiftUI
 import Tagged
 
 struct SyncUp: Equatable, Identifiable, Codable {
+
   let id: Tagged<Self, UUID>
-  var attendees: IdentifiedArrayOf<Attendee> = []
+  var attendees: [Attendee] = []
   var duration: Duration = .seconds(60 * 5)
-  var meetings: IdentifiedArrayOf<Meeting> = []
+  var meetings: [Meeting] = []
   var theme: Theme = .bubblegum
   var title = ""
 
   var durationPerAttendee: Duration {
-    self.duration / self.attendees.count
+    duration / attendees.count
   }
 }
 

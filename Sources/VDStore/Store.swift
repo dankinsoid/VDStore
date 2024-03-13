@@ -83,10 +83,10 @@ import Foundation
 /// ### Thread safety
 ///
 /// The `Store` class is isolated to main thread by @MainActor attribute.
-@MainActor
 @propertyWrapper
 @dynamicMemberLookup
-public struct Store<State> {
+@MainActor
+public struct Store<State>: Sendable {
 
 	/// The state of the store.
 	public var state: State {
@@ -95,7 +95,7 @@ public struct Store<State> {
 	}
 
 	/// Injected dependencies.
-	public var di: StoreDIValues {
+	public nonisolated var di: StoreDIValues {
 		diModifier(StoreDIValues().with(store: self))
 	}
 
@@ -111,20 +111,31 @@ public struct Store<State> {
 		StorePublisher(upstream: box.eraseToAnyPublisher())
 	}
 
+    /// An async sequence that emits when state changes.
+    ///
+    /// This sequence supports dynamic member lookup so that you can pluck out a specific field in the state:
+    ///
+    /// ```swift
+    /// for await state in store.async.alert { ... }
+    /// ```
+    public nonisolated var async: StoreAsyncSequence<State> {
+        StoreAsyncSequence(upstream: box.eraseToAnyPublisher())
+    }
+
 	/// The publisher that emits before the state is going to be changed. Required by `SwiftUI`.
-	nonisolated var willSet: AnyPublisher<Void, Never> {
+    nonisolated var willSet: AnyPublisher<Void, Never> {
 		box.willSet.eraseToAnyPublisher()
 	}
 
 	private let box: StoreBox<State>
-	private let diModifier: (StoreDIValues) -> StoreDIValues
+	private let diModifier: @Sendable (StoreDIValues) -> StoreDIValues
 
 	public var wrappedValue: State {
 		get { state }
 		nonmutating set { state = newValue }
 	}
 
-	public var projectedValue: Store<State> {
+	public nonisolated var projectedValue: Store<State> {
 		get { self }
 		set { self = newValue }
 	}
@@ -139,9 +150,9 @@ public struct Store<State> {
 		self.init(box: StoreBox(state))
 	}
 
-	nonisolated init(
+    nonisolated init(
 		box: StoreBox<State>,
-		di: @escaping (StoreDIValues) -> StoreDIValues = { $0 }
+		di: @escaping @Sendable (StoreDIValues) -> StoreDIValues = { $0 }
 	) {
 		self.box = box
 		diModifier = di
@@ -179,7 +190,7 @@ public struct Store<State> {
 	///   - get: A closure that gets the child state from the parent state.
 	///   - set: A closure that modifies the parent state from the child state.
 	/// - Returns: A new store with its state transformed.
-	public func scope<ChildState>(
+	public nonisolated func scope<ChildState>(
 		get getter: @escaping (State) -> ChildState,
 		set setter: @escaping (inout State, ChildState) -> Void
 	) -> Store<ChildState> {
@@ -216,7 +227,7 @@ public struct Store<State> {
 	/// - Parameters:
 	///   - keyPath: A writable key path from `State` to `ChildState`.
 	/// - Returns: A new store with its state transformed.
-	public func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Store<ChildState> {
+	public nonisolated func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Store<ChildState> {
 		scope {
 			$0[keyPath: keyPath]
 		} set: {
@@ -251,7 +262,7 @@ public struct Store<State> {
 	/// - Parameters:
 	///   - keyPath: A writable key path from `State` to `ChildState`.
 	/// - Returns: A new store with its state transformed.
-	public subscript<ChildState>(
+	public nonisolated subscript<ChildState>(
 		dynamicMember keyPath: WritableKeyPath<State, ChildState>
 	) -> Store<ChildState> {
 		scope(keyPath)
@@ -262,7 +273,7 @@ public struct Store<State> {
 	///  - keyPath: A key path to the value in the store's dependencies.
 	///  - value: The value to inject.
 	/// - Returns: A new store with the injected value.
-	public func di<DIValue>(
+	public nonisolated func di<DIValue>(
 		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
 		_ value: DIValue
 	) -> Store {
@@ -275,7 +286,7 @@ public struct Store<State> {
 	/// - Parameters:
 	///  - transform: A closure that transforms the store's dependencies.
 	/// - Returns: A new store with the transformed dependencies.
-	public func transformDI(
+	public nonisolated func transformDI(
 		_ transform: @escaping (StoreDIValues) -> StoreDIValues
 	) -> Store {
 		Store(box: box) { [diModifier] in
@@ -287,7 +298,7 @@ public struct Store<State> {
 	/// - Parameters:
 	///  - transform: A closure that transforms the store's dependencies.
 	/// - Returns: A new store with the transformed dependencies.
-	public func transformDI(
+	public nonisolated func transformDI(
 		_ transform: @escaping (inout StoreDIValues) -> Void
 	) -> Store {
 		transformDI {
@@ -298,7 +309,7 @@ public struct Store<State> {
 	}
 
 	/// Suspends the store from updating the UI until the block returns.
-	public func update<T>(_ update: () throws -> T) rethrows -> T {
+	public func update<T>(_ update: @MainActor () throws -> T) rethrows -> T {
         box.startUpdate()
 		defer { box.endUpdate() }
 		let result = try update()
@@ -308,11 +319,11 @@ public struct Store<State> {
 
 public extension Store where State: MutableCollection {
 
-	subscript(_ index: State.Index) -> Store<State.Element> {
+    nonisolated subscript(_ index: State.Index) -> Store<State.Element> {
 		scope(index)
 	}
 
-	func scope(_ index: State.Index) -> Store<State.Element> {
+    nonisolated func scope(_ index: State.Index) -> Store<State.Element> {
 		scope {
 			$0[index]
 		} set: {

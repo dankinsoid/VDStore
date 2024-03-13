@@ -21,6 +21,16 @@ extension FunctionDeclSyntax {
 			attributes.remove(at: i)
 		}
 	}
+    
+    mutating func add(attribute: String) {
+        if attributes.contains(where: { $0.as(AttributeSyntax.self)?.attributeName.description == attribute }) {
+            return
+        }
+        attributes.insert(
+            .attribute(AttributeSyntax("\(raw: attribute)")),
+            at: attributes.startIndex
+        )
+    }
 }
 
 extension MacroExpansionContext {

@@ -120,7 +120,7 @@ struct SpeechRecognitionView: View {
     .padding()
     .animation(.linear, value: state.transcribedText)
     .alert(
-        "Error",
+        state.alert ?? "",
         isPresented: Binding {
             state.alert != nil
         } set: { newValue in
@@ -129,7 +129,9 @@ struct SpeechRecognitionView: View {
             }
         }
     ) {
-        Text(state.alert ?? "")
+        Button("OK") {
+            state.alert = nil
+        }
     }
   }
 }

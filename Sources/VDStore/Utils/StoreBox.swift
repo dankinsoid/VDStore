@@ -54,22 +54,28 @@ private final class StoreRootBox<State>: Publisher {
 	typealias Output = State
 	typealias Failure = Never
 
+    private var _state: State
 	var state: State {
-		willSet {
+        get {
+            _$observationRegistrar.access(box: self)
+            return _state
+        }
+		set {
 			if updatesCounter == 0 {
 				if suspendAllSyncStoreUpdates {
 					if asyncUpdatesCounter == 0 {
 						suspendSyncUpdates()
 					}
 				} else {
-					willSetSubject.send()
+                    sendWillSet()
 				}
 			}
-		}
-		didSet {
-			if updatesCounter == 0, asyncUpdatesCounter == 0 {
-                didSetSubject.send()
-			}
+    
+            _state = newValue
+            
+            if updatesCounter == 0, asyncUpdatesCounter == 0 {
+                sendDidSet()
+            }
 		}
 	}
 
@@ -81,21 +87,27 @@ private final class StoreRootBox<State>: Publisher {
 	private var asyncUpdatesCounter = 0
 	private let willSetSubject = PassthroughSubject<Void, Never>()
 	private let didSetSubject = PassthroughSubject<Void, Never>()
+    private let _$observationRegistrar: ObservationRegistrarProtocol
 
 	init(_ state: State) {
-		self.state = state
+		_state = state
+        if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
+            _$observationRegistrar = ObservationRegistrar()
+        } else {
+            _$observationRegistrar = MockObservationRegistrar()
+        }
 	}
 
 	func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Output == S.Input {
         didSetSubject
-			.compactMap { [weak self] in self?.state }
-			.prepend(state)
+			.compactMap { [weak self] in self?._state }
+			.prepend(_state)
 			.receive(subscriber: subscriber)
 	}
 
 	func startUpdate() {
 		if updatesCounter == 0, asyncUpdatesCounter == 0 {
-			willSetSubject.send()
+            sendWillSet()
 		}
 		updatesCounter &+= 1
 	}
@@ -103,10 +115,10 @@ private final class StoreRootBox<State>: Publisher {
 	func endUpdate() {
 		updatesCounter &-= 1
 		guard updatesCounter == 0 else { return }
-        didSetSubject.send()
+        sendDidSet()
 
 		if asyncUpdatesCounter > 0 {
-            willSetSubject.send()
+            sendWillSet()
 		}
 	}
 
@@ -119,7 +131,7 @@ private final class StoreRootBox<State>: Publisher {
 
 	private func startAsyncUpdate() {
 		if asyncUpdatesCounter == 0 {
-            willSetSubject.send()
+            sendWillSet()
 		}
 		asyncUpdatesCounter &+= 1
 	}
@@ -127,7 +139,54 @@ private final class StoreRootBox<State>: Publisher {
 	private func endAsyncUpdate() {
 		asyncUpdatesCounter &-= 1
 		if asyncUpdatesCounter == 0 {
-            didSetSubject.send()
+            sendDidSet()
 		}
 	}
+    
+    private func sendWillSet() {
+        willSetSubject.send()
+        _$observationRegistrar.willSet(box: self)
+    }
+    
+    private func sendDidSet() {
+        didSetSubject.send()
+        _$observationRegistrar.didSet(box: self)
+    }
+}
+
+private protocol ObservationRegistrarProtocol {
+    func access<State>(box: StoreRootBox<State>)
+    func willSet<State>(box: StoreRootBox<State>)
+    func didSet<State>(box: StoreRootBox<State>)
+    func withMutation<State, T>(box: StoreRootBox<State>, _ mutation: () throws -> T) rethrows -> T
+}
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+extension StoreRootBox: Observable {
+}
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+extension ObservationRegistrar: ObservationRegistrarProtocol {
+    fileprivate func access<State>(box: StoreRootBox<State>) {
+        access(box, keyPath: \.state)
+    }
+    
+    fileprivate func willSet<Output>(box: StoreRootBox<Output>) {
+        willSet(box, keyPath: \.state)
+    }
+    fileprivate func didSet<Output>(box: StoreRootBox<Output>) {
+        didSet(box, keyPath: \.state)
+    }
+    fileprivate func withMutation<State, T>(box: StoreRootBox<State>, _ mutation: () throws -> T) rethrows -> T {
+        try withMutation(of: box, keyPath: \.state, mutation)
+    }
+}
+
+private struct MockObservationRegistrar: ObservationRegistrarProtocol {
+    func access<State>(box: StoreRootBox<State>){}
+    func willSet<Output>(box: StoreRootBox<Output>) {}
+    func didSet<Output>(box: StoreRootBox<Output>) {}
+    func withMutation<State, T>(box: StoreRootBox<State>, _ mutation: () throws -> T) rethrows -> T {
+        try mutation()
+    }
 }

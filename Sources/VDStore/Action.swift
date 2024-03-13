@@ -122,6 +122,7 @@ public extension Store.Action {
 	}
 }
 
+@MainActor
 public extension Store {
 
 	/// Executes the given action through middlwares.

@@ -1,106 +1,103 @@
-import ComposableArchitecture
+import VDStore
 import SwiftUI
 import SwiftUINavigation
 
-@Reducer
-struct SyncUpForm {
-  @ObservableState
-  struct State: Equatable, Sendable {
+struct SyncUpForm: Equatable {
+
     var focus: Field? = .title
     var syncUp: SyncUp
 
-    init(focus: Field? = .title, syncUp: SyncUp) {
-      self.focus = focus
-      self.syncUp = syncUp
-      if self.syncUp.attendees.isEmpty {
-        @Dependency(\.uuid) var uuid
-        self.syncUp.attendees.append(Attendee(id: Attendee.ID(uuid())))
-      }
+    init(
+        focus: Field? = .title,
+        syncUp: SyncUp
+    ) {
+        self.focus = focus
+        self.syncUp = syncUp
+//        if self.syncUp.attendees.isEmpty {
+//            @Dependency(\.uuid) var uuid
+//            self.syncUp.attendees.append(Attendee(id: Attendee.ID(uuid())))
+//        }
     }
 
     enum Field: Hashable {
-      case attendee(Attendee.ID)
-      case title
+        case attendee(Attendee.ID)
+        case title
     }
-  }
+}
 
-  enum Action: BindableAction, Equatable, Sendable {
-    case addAttendeeButtonTapped
-    case binding(BindingAction<State>)
-    case deleteAttendees(atOffsets: IndexSet)
-  }
+@Actions
+extension Store<SyncUpForm> {
 
-  @Dependency(\.uuid) var uuid
-
-  var body: some ReducerOf<Self> {
-    BindingReducer()
-    Reduce { state, action in
-      switch action {
-      case .addAttendeeButtonTapped:
-        let attendee = Attendee(id: Attendee.ID(self.uuid()))
+    func addAttendeeButtonTapped() {
+        let attendee = Attendee(id: Attendee.ID(di.uuid()))
         state.syncUp.attendees.append(attendee)
         state.focus = .attendee(attendee.id)
-        return .none
+    }
 
-      case .binding:
-        return .none
-
-      case let .deleteAttendees(atOffsets: indices):
+    func deleteAttendees(atOffsets indices: IndexSet) {
         state.syncUp.attendees.remove(atOffsets: indices)
         if state.syncUp.attendees.isEmpty {
-          state.syncUp.attendees.append(Attendee(id: Attendee.ID(self.uuid())))
+            state.syncUp.attendees.append(Attendee(id: Attendee.ID(di.uuid())))
         }
-        guard let firstIndex = indices.first
-        else { return .none }
+        guard let firstIndex = indices.first else { return }
         let index = min(firstIndex, state.syncUp.attendees.count - 1)
         state.focus = .attendee(state.syncUp.attendees[index].id)
-        return .none
-      }
     }
-  }
 }
 
 struct SyncUpFormView: View {
-  @Bindable var store: StoreOf<SyncUpForm>
-  @FocusState var focus: SyncUpForm.State.Field?
+
+  @ViewStore var state: SyncUpForm
+  @FocusState var focus: SyncUpForm.Field?
+    
+    init(state: SyncUpForm, focus: SyncUpForm.Field? = nil) {
+        self.state = state
+        self.focus = focus
+    }
+    
+    init(store: Store<SyncUpForm>, focus: SyncUpForm.Field? = nil) {
+        _state = ViewStore(store: store)
+        self.focus = focus
+    }
 
   var body: some View {
     Form {
       Section {
-        TextField("Title", text: $store.syncUp.title)
-          .focused($focus, equals: .title)
+          TextField("Title", text: $state.binding.syncUp.title)
+            .focused($focus, equals: .title)
         HStack {
-          Slider(value: $store.syncUp.duration.minutes, in: 5...30, step: 1) {
+            Slider(value: $state.binding.syncUp.duration.minutes, in: 5...30, step: 1) {
             Text("Length")
           }
           Spacer()
-          Text(store.syncUp.duration.formatted(.units()))
+          Text(state.syncUp.duration.formatted(.units()))
         }
-        ThemePicker(selection: $store.syncUp.theme)
+          ThemePicker(selection: $state.binding.syncUp.theme)
       } header: {
         Text("Sync-up Info")
       }
       Section {
-        ForEach($store.syncUp.attendees) { $attendee in
-          TextField("Name", text: $attendee.name)
+        ForEach(state.syncUp.attendees) { attendee in
+          TextField("Name", text: attendee.name)
             .focused($focus, equals: .attendee(attendee.id))
         }
         .onDelete { indices in
-          store.send(.deleteAttendees(atOffsets: indices))
+          $state.deleteAttendees(atOffsets: indices)
         }
 
         Button("New attendee") {
-          store.send(.addAttendeeButtonTapped)
+            $state.addAttendeeButtonTapped()
         }
       } header: {
         Text("Attendees")
       }
     }
-    .bind($store.focus, to: $focus)
+//    .bind($state.binding.focus, to: $focus)
   }
 }
 
 struct ThemePicker: View {
+
   @Binding var selection: Theme
 
   var body: some View {
@@ -129,10 +126,6 @@ extension Duration {
 
 #Preview {
   NavigationStack {
-    SyncUpFormView(
-      store: Store(initialState: SyncUpForm.State(syncUp: .mock)) {
-        SyncUpForm()
-      }
-    )
+    SyncUpFormView(state: SyncUpForm(syncUp: .mock))
   }
 }

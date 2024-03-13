@@ -94,10 +94,10 @@ public extension Store {
 public extension Task {
 
 	/// Store the task in the storage by it cancellation id.
-	@MainActor
+    @MainActor
 	@discardableResult
-	func store(in store: TasksStorage, id: AnyHashable) -> Task {
-		store.add(for: id, self)
+	func store(in storage: TasksStorage, id: AnyHashable) -> Task {
+        storage.add(for: id, self)
 		return self
 	}
 }

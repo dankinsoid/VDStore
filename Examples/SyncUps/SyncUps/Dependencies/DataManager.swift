@@ -1,13 +1,12 @@
-import ComposableArchitecture
+import VDStore
 import Foundation
 
-@DependencyClient
 struct DataManager: Sendable {
   var load: @Sendable (_ from: URL) throws -> Data
   var save: @Sendable (Data, _ to: URL) async throws -> Void
 }
 
-extension DataManager: DependencyKey {
+extension DataManager {
   static let liveValue = Self(
     load: { url in try Data(contentsOf: url) },
     save: { data, url in try data.write(to: url) }
@@ -16,14 +15,14 @@ extension DataManager: DependencyKey {
   static let testValue = Self()
 }
 
-extension DependencyValues {
-  var dataManager: DataManager {
-    get { self[DataManager.self] }
-    set { self[DataManager.self] = newValue }
-  }
+extension StoreDIValues {
+
+  @StoreDIValue
+  var dataManager: DataManager = valueFor(live: .liveValue, test: .testValue)
 }
 
 extension DataManager {
+
   static func mock(initialData: Data? = nil) -> Self {
     let data = LockIsolated(initialData)
     return Self(

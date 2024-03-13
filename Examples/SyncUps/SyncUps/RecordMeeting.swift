@@ -1,46 +1,30 @@
-import ComposableArchitecture
+import VDStore
 import Speech
 import SwiftUI
 
-@Reducer
-struct RecordMeeting {
-  @ObservableState
-  struct State: Equatable {
-    @Presents var alert: AlertState<Action.Alert>?
+struct RecordMeeting: Equatable {
+    
+    var alert: Alert?
     var secondsElapsed = 0
     var speakerIndex = 0
     var syncUp: SyncUp
     var transcript = ""
-
+    
     var durationRemaining: Duration {
-      self.syncUp.duration - .seconds(self.secondsElapsed)
+        self.syncUp.duration - .seconds(self.secondsElapsed)
     }
-  }
-
-  enum Action {
-    case alert(PresentationAction<Alert>)
-    case delegate(Delegate)
-    case endMeetingButtonTapped
-    case nextButtonTapped
-    case onTask
-    case timerTick
-    case speechFailure
-    case speechResult(SpeechRecognitionResult)
-
-    @CasePathable
+    
     enum Alert {
-      case confirmDiscard
-      case confirmSave
+        case confirmDiscard
+        case confirmSave
     }
-    @CasePathable
+    
     enum Delegate {
-      case save(transcript: String)
+        case save(transcript: String)
     }
-  }
+}
 
-  @Dependency(\.continuousClock) var clock
-  @Dependency(\.dismiss) var dismiss
-  @Dependency(\.speechClient) var speechClient
+extension Store<RecordMeeting> {
 
   var body: some ReducerOf<Self> {
     Reduce { state, action in

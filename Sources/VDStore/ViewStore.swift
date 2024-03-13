@@ -95,6 +95,7 @@ extension EnvironmentValues {
 	}
 }
 
+@MainActor
 public extension Store {
 
 	/// SwiftUI binding to store's state.

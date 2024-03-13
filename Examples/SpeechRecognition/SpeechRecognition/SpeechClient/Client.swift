@@ -21,7 +21,7 @@ struct SpeechClient {
 
 extension SpeechClient {
 
-  static var previewValue: Self {
+  static let previewValue: Self = {
     let isRecording = ActorIsolated(false)
 
     return Self(
@@ -63,7 +63,7 @@ extension SpeechClient {
         }
       }
     )
-  }
+  }()
 }
 
 final actor ActorIsolated<T> {
@@ -81,14 +81,10 @@ final actor ActorIsolated<T> {
 
 extension StoreDIValues {
 
-  var speechClient: SpeechClient {
-      get {
-          self[\.speechClient] ?? valueFor(
-            live: .liveValue,
-            test: SpeechClient(),
-            preview: .previewValue
-          )
-      }
-    set { self[\.speechClient] = newValue }
-  }
+    @StoreDIValue
+    var speechClient: SpeechClient = valueFor(
+        live: .liveValue,
+        test: SpeechClient(),
+        preview: .previewValue
+    )
 }

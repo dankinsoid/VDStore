@@ -3,7 +3,7 @@ import Speech
 
 extension SpeechClient {
 
-  static var liveValue: Self {
+  static let liveValue: Self = {
     let speech = Speech()
     return Self(
       finishTask: {
@@ -20,7 +20,7 @@ extension SpeechClient {
         await speech.startTask(request: request)
       }
     )
-  }
+  }()
 }
 
 private actor Speech {

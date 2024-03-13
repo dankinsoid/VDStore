@@ -90,6 +90,20 @@ final class VDStoreTests: XCTestCase {
 		XCTAssertEqual(count, 2)
 	}
 
+    /// Test that the publisher property of a Store sends updates when the state changes.
+    func testAsyncSequenceUpdates() async {
+        let initialCounter = Counter(counter: 0)
+        let store = Store(initialCounter)
+        Task {
+            store.add()
+        }
+        for await newState in store.async {
+            if newState.counter == 1 {
+                break
+            }
+        }
+    }
+
 	#if swift(>=5.9)
 	/// Test that the publisher property of a Store sends updates when the state changes.
 	func testPublisherUpdates() async {
@@ -222,7 +236,55 @@ final class VDStoreTests: XCTestCase {
 		await fulfillment(of: [expectation], timeout: 0.1)
 		XCTAssertEqual(updatesCount, 2)
 	}
+
+//    @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+//    func testObservation() async {
+//        let store = Store(Counter()).counter
+//        let expectation = expectation(description: "Counter")
+////        store.state += 1
+//        withObservationTracking {
+//            store.state += 1
+//        } onChange: {
+//            expectation.fulfill()
+//        }
+////        withContinousObservation(of: store.state) { state in
+////            print("onChange")
+////            expectation.fulfill()
+////        }
+////        store.state += 1
+//        await fulfillment(of: [expectation], timeout: 0.1)
+//    }
 	#endif
+}
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+func withContinousObservation<T>(of value: @escaping @autoclosure () -> T, execute: @escaping (T) -> Void) {
+    withObservationTracking {
+        execute(value())
+    } onChange: {
+        DispatchQueue.main.async {
+            withContinousObservation(of: value(), execute: execute)
+        }
+    }
+}
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+func observationTrackingStream<T>(
+    of value: @escaping @autoclosure () -> T
+) -> AsyncStream<T> {
+    AsyncStream { continuation in
+        @Sendable func observe() {
+            let result = withObservationTracking {
+                value()
+            } onChange: {
+                DispatchQueue.main.async {
+                    observe()
+                }
+            }
+            continuation.yield(result)
+        }
+        observe()
+    }
 }
 
 struct Counter: Equatable {
