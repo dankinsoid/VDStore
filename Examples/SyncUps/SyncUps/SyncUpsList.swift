@@ -5,7 +5,7 @@ import VDFlow
 struct SyncUpsList: Equatable {
 
     var destination = Destination()
-    var syncUps: [SyncUp]
+    var syncUps: [SyncUp] = []
 
     init(
         destination: Destination.Steps? = nil,
@@ -33,7 +33,7 @@ struct SyncUpsList: Equatable {
 extension Store<SyncUpsList> {
 
     func addSyncUpButtonTapped() {
-        state.destination.add = SyncUpForm(syncUp: SyncUp(id: SyncUp.ID(di.uuid())))
+        state.destination.add = SyncUpForm(syncUp: SyncUp(id: di.uuid()))
     }
 
     func confirmAddSyncUpButtonTapped() {
@@ -43,8 +43,7 @@ extension Store<SyncUpsList> {
         }
         if syncUp.attendees.isEmpty {
             syncUp.attendees.append(
-                state.destination.add.syncUp.attendees.first
-                ?? Attendee(id: Attendee.ID(di.uuid()))
+                state.destination.add.syncUp.attendees.first ?? Attendee(id: di.uuid())
             )
         }
         state.syncUps.append(syncUp)
@@ -70,12 +69,12 @@ extension Store<SyncUpsList> {
 }
 
 struct SyncUpsListView: View {
-    
+
     @ViewStore var state: SyncUpsList
-    @StateStep var feature: AppFeature.Path
-    
+    @StateStep var feature = AppFeature.Path()
+
     init(state: SyncUpsList) {
-        self.state = state
+        self._state = ViewStore(wrappedValue: state)
     }
     
     init(store: Store<SyncUpsList>) {
@@ -85,14 +84,11 @@ struct SyncUpsListView: View {
     var body: some View {
         List {
             ForEach(state.syncUps) { syncUp in
-                NavigationLink(value: AppFeature.Path.Steps.detail) {
+                Button {
+                    feature.detail = SyncUpDetail(syncUp: syncUp)
+                } label: {
                     CardView(syncUp: syncUp)
                 }
-//                Button {
-//                    feature.detail = SyncUpDetail.State(syncUp: syncUp)
-//                } label: {
-//                    CardView(syncUp: syncUp)
-//                }
                 .listRowBackground(syncUp.theme.mainColor)
             }
             .onDelete {
@@ -122,7 +118,7 @@ struct SyncUpsListView: View {
                         }
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Add") {
-                                $state.dismissAddSyncUpButtonTapped()
+                                $state.confirmAddSyncUpButtonTapped()
                             }
                         }
                     }

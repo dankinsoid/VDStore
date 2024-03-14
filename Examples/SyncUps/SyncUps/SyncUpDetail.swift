@@ -1,279 +1,270 @@
 import VDStore
 import SwiftUI
+import VDFlow
 
-@Reducer
 struct SyncUpDetail: Equatable {
-  @Reducer(state: .equatable)
-  enum Destination {
-    case alert(AlertState<Alert>)
-    case edit(SyncUpForm)
-
-    @CasePathable
-    enum Alert {
-      case confirmDeletion
-      case continueWithoutRecording
-      case openSettings
-    }
-  }
-
-  @ObservableState
-  struct State: Equatable {
-    @Presents var destination: Destination.State?
+    
+    var destination = Destination()
     var syncUp: SyncUp
-  }
 
-  enum Action: Sendable {
-    case cancelEditButtonTapped
-    case delegate(Delegate)
-    case deleteButtonTapped
-    case deleteMeetings(atOffsets: IndexSet)
-    case destination(PresentationAction<Destination.Action>)
-    case doneEditingButtonTapped
-    case editButtonTapped
-    case startMeetingButtonTapped
+    @Steps
+    struct Destination: Equatable {
+        var alert = Alert()
+        var edit = SyncUpForm(syncUp: SyncUp(id: .init()))
 
-    @CasePathable
-    enum Delegate {
-      case deleteSyncUp
-      case syncUpUpdated(SyncUp)
-      case startMeeting
-    }
-  }
-
-  @Dependency(\.dismiss) var dismiss
-  @Dependency(\.openSettings) var openSettings
-  @Dependency(\.speechClient.authorizationStatus) var authorizationStatus
-
-  var body: some ReducerOf<Self> {
-    Reduce { state, action in
-      switch action {
-      case .cancelEditButtonTapped:
-        state.destination = nil
-        return .none
-
-      case .delegate:
-        return .none
-
-      case .deleteButtonTapped:
-        state.destination = .alert(.deleteSyncUp)
-        return .none
-
-      case let .deleteMeetings(atOffsets: indices):
-        state.syncUp.meetings.remove(atOffsets: indices)
-        return .none
-
-      case let .destination(.presented(.alert(alertAction))):
-        switch alertAction {
-        case .confirmDeletion:
-          return .run { send in
-            await send(.delegate(.deleteSyncUp), animation: .default)
-            await self.dismiss()
-          }
-        case .continueWithoutRecording:
-          return .send(.delegate(.startMeeting))
-        case .openSettings:
-          return .run { _ in
-            await self.openSettings()
-          }
+        @Steps
+        struct Alert: Equatable {
+            var confirmDeletion
+            var speechRecognitionDenied
+            var speechRecognitionRestricted
         }
+    }
+}
 
-      case .destination:
-        return .none
+@MainActor
+protocol SyncUpDetailDelegate {
+    func deleteSyncUp(syncUp: SyncUp)
+    func syncUpUpdated(syncUp: SyncUp)
+    func startMeeting(syncUp: SyncUp)
+}
 
-      case .doneEditingButtonTapped:
-        guard case let .some(.edit(editState)) = state.destination
-        else { return .none }
-        state.syncUp = editState.syncUp
-        state.destination = nil
-        return .none
+@StoreDIValuesList
+extension StoreDIValues {
+    var syncUpDetailDelegate: SyncUpDetailDelegate?
+}
 
-      case .editButtonTapped:
-        state.destination = .edit(SyncUpForm.State(syncUp: state.syncUp))
-        return .none
+@Actions
+extension Store<SyncUpDetail> {
 
-      case .startMeetingButtonTapped:
-        switch self.authorizationStatus() {
+    func cancelEditButtonTapped() {
+        state.destination.selected = nil
+    }
+
+    func deleteButtonTapped() {
+        state.destination.alert.confirmDeletion.select()
+    }
+
+    func deleteMeetings(atOffsets indices: IndexSet) {
+        state.syncUp.meetings.remove(atOffsets: indices)
+    }
+
+    func confirmDeletion() async {
+        withAnimation {
+            di.syncUpDetailDelegate?.deleteSyncUp(syncUp: state.syncUp)
+        }
+        di.dismiss()
+    }
+    
+    func continueWithoutRecording() {
+        di.syncUpDetailDelegate?.startMeeting(syncUp: state.syncUp)
+    }
+    
+    func openSettings() async {
+        await di.openSettings()
+    }
+    
+    func doneEditingButtonTapped() {
+        state.syncUp = state.destination.edit.syncUp
+        di.syncUpDetailDelegate?.syncUpUpdated(syncUp: state.syncUp)
+        state.destination.selected = nil
+    }
+
+    func editButtonTapped() {
+        state.destination.edit = SyncUpForm(syncUp: state.syncUp)
+    }
+
+    func startMeetingButtonTapped() {
+        switch di.speechClient.authorizationStatus() {
         case .notDetermined, .authorized:
-          return .send(.delegate(.startMeeting))
+            di.syncUpDetailDelegate?.startMeeting(syncUp: state.syncUp)
 
         case .denied:
-          state.destination = .alert(.speechRecognitionDenied)
-          return .none
+            state.destination.alert.speechRecognitionDenied.select()
 
         case .restricted:
-          state.destination = .alert(.speechRecognitionRestricted)
-          return .none
+            state.destination.alert.speechRecognitionRestricted.select()
 
         @unknown default:
-          return .none
+          break
         }
       }
-    }
-    .ifLet(\.$destination, action: \.destination)
-    .onChange(of: \.syncUp) { oldValue, newValue in
-      Reduce { state, action in
-        .send(.delegate(.syncUpUpdated(newValue)))
-      }
-    }
-  }
 }
 
 struct SyncUpDetailView: View {
-  @Bindable var store: StoreOf<SyncUpDetail>
-
-  var body: some View {
-    Form {
-      Section {
-        Button {
-          store.send(.startMeetingButtonTapped)
-        } label: {
-          Label("Start Meeting", systemImage: "timer")
-            .font(.headline)
-            .foregroundColor(.accentColor)
-        }
-        HStack {
-          Label("Length", systemImage: "clock")
-          Spacer()
-          Text(store.syncUp.duration.formatted(.units()))
-        }
-
-        HStack {
-          Label("Theme", systemImage: "paintpalette")
-          Spacer()
-          Text(store.syncUp.theme.name)
-            .padding(4)
-            .foregroundColor(store.syncUp.theme.accentColor)
-            .background(store.syncUp.theme.mainColor)
-            .cornerRadius(4)
-        }
-      } header: {
-        Text("Sync-up Info")
-      }
-
-      if !store.syncUp.meetings.isEmpty {
-        Section {
-          ForEach(store.syncUp.meetings) { meeting in
-            NavigationLink(
-              state: AppFeature.Path.State.meeting(meeting, syncUp: store.syncUp)
-            ) {
-              HStack {
-                Image(systemName: "calendar")
-                Text(meeting.date, style: .date)
-                Text(meeting.date, style: .time)
-              }
-            }
-          }
-          .onDelete { indices in
-            store.send(.deleteMeetings(atOffsets: indices))
-          }
-        } header: {
-          Text("Past meetings")
-        }
-      }
-
-      Section {
-        ForEach(store.syncUp.attendees) { attendee in
-          Label(attendee.name, systemImage: "person")
-        }
-      } header: {
-        Text("Attendees")
-      }
-
-      Section {
-        Button("Delete") {
-          store.send(.deleteButtonTapped)
-        }
-        .foregroundColor(.red)
-        .frame(maxWidth: .infinity)
-      }
+    
+    @ViewStore var state: SyncUpDetail
+    @StateStep var feature = AppFeature.Path()
+    
+    init(state: SyncUpDetail) {
+        _state = ViewStore(wrappedValue: state)
     }
-    .toolbar {
-      Button("Edit") {
-        store.send(.editButtonTapped)
-      }
+    
+    init(store: Store<SyncUpDetail>) {
+        _state = ViewStore(store: store)
     }
-    .navigationTitle(store.syncUp.title)
-    .alert($store.scope(state: \.destination?.alert, action: \.destination.alert))
-    .sheet(item: $store.scope(state: \.destination?.edit, action: \.destination.edit)) { store in
-      NavigationStack {
-        SyncUpFormView(store: store)
-          .navigationTitle(self.store.syncUp.title)
-          .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-              Button("Cancel") {
-                self.store.send(.cancelEditButtonTapped)
-              }
+    
+    var body: some View {
+        Form {
+            Section {
+                Button {
+                    $state.startMeetingButtonTapped()
+                } label: {
+                    Label("Start Meeting", systemImage: "timer")
+                        .font(.headline)
+                        .foregroundColor(.accentColor)
+                }
+                HStack {
+                    Label("Length", systemImage: "clock")
+                    Spacer()
+                    Text(state.syncUp.duration.formatted(.units()))
+                }
+                
+                HStack {
+                    Label("Theme", systemImage: "paintpalette")
+                    Spacer()
+                    Text(state.syncUp.theme.name)
+                        .padding(4)
+                        .foregroundColor(state.syncUp.theme.accentColor)
+                        .background(state.syncUp.theme.mainColor)
+                        .cornerRadius(4)
+                }
+            } header: {
+                Text("Sync-up Info")
             }
-            ToolbarItem(placement: .confirmationAction) {
-              Button("Done") {
-                self.store.send(.doneEditingButtonTapped)
-              }
+            
+            if !state.syncUp.meetings.isEmpty {
+                Section {
+                    ForEach(state.syncUp.meetings) { meeting in
+                        Button {
+                            feature.meeting = AppFeature.Path.MeetingSyncUp(meeting: meeting, syncUp: state.syncUp)
+                        } label: {
+                            HStack {
+                                Image(systemName: "calendar")
+                                Text(meeting.date, style: .date)
+                                Text(meeting.date, style: .time)
+                            }
+                        }
+                    }
+                    .onDelete { indices in
+                        $state.deleteMeetings(atOffsets: indices)
+                    }
+                } header: {
+                    Text("Past meetings")
+                }
             }
-          }
-      }
+            
+            Section {
+                ForEach(state.syncUp.attendees) { attendee in
+                    Label(attendee.name, systemImage: "person")
+                }
+            } header: {
+                Text("Attendees")
+            }
+            
+            Section {
+                Button("Delete") {
+                    $state.deleteButtonTapped()
+                }
+                .foregroundColor(.red)
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .toolbar {
+            Button("Edit") {
+                $state.editButtonTapped()
+            }
+        }
+        .navigationTitle(state.syncUp.title)
+        .deleteSyncUpAlert(store: $state)
+        .speechRecognitionDeniedAlert(store: $state)
+        .speechRecognitionRestrictedAlert(store: $state)
+        .sheet(
+            isPresented: $state.binding.destination.isSelected(.edit)
+        ) {
+            NavigationStack {
+                SyncUpFormView(store: $state.destination.edit)
+                    .navigationTitle(state.syncUp.title)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") {
+                                $state.cancelEditButtonTapped()
+                            }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                $state.doneEditingButtonTapped()
+                            }
+                        }
+                    }
+            }
+        }
     }
-  }
 }
 
-extension AlertState where Action == SyncUpDetail.Destination.Alert {
-  static let deleteSyncUp = Self {
-    TextState("Delete?")
-  } actions: {
-    ButtonState(role: .destructive, action: .confirmDeletion) {
-      TextState("Yes")
+@MainActor
+extension View {
+    
+    func deleteSyncUpAlert(store: Store<SyncUpDetail>) -> some View {
+        alert(
+            "Delete?",
+            isPresented: store.binding.destination.alert.isSelected(.confirmDeletion)
+        ) {
+            Button("Yes", role: .destructive) {
+                Task {
+                    await store.confirmDeletion()
+                }
+            }
+            Button("Nevermind", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this meeting?")
+        }
     }
-    ButtonState(role: .cancel) {
-      TextState("Nevermind")
-    }
-  } message: {
-    TextState("Are you sure you want to delete this meeting?")
-  }
 
-  static let speechRecognitionDenied = Self {
-    TextState("Speech recognition denied")
-  } actions: {
-    ButtonState(action: .continueWithoutRecording) {
-      TextState("Continue without recording")
-    }
-    ButtonState(action: .openSettings) {
-      TextState("Open settings")
-    }
-    ButtonState(role: .cancel) {
-      TextState("Cancel")
-    }
-  } message: {
-    TextState(
+    func speechRecognitionDeniedAlert(store: Store<SyncUpDetail>) -> some View {
+        alert(
+            "Speech recognition denied",
+            isPresented: store.binding.destination.alert.isSelected(.speechRecognitionDenied)
+        ) {
+            Button("Continue without recording") {
+                store.continueWithoutRecording()
+            }
+            Button("Open settings") {
+                Task {
+                    await store.openSettings()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
       """
       You previously denied speech recognition and so your meeting will not be recorded. You can \
       enable speech recognition in settings, or you can continue without recording.
       """
-    )
-  }
+            )
+        }
+    }
 
-  static let speechRecognitionRestricted = Self {
-    TextState("Speech recognition restricted")
-  } actions: {
-    ButtonState(action: .continueWithoutRecording) {
-      TextState("Continue without recording")
-    }
-    ButtonState(role: .cancel) {
-      TextState("Cancel")
-    }
-  } message: {
-    TextState(
+    func speechRecognitionRestrictedAlert(store: Store<SyncUpDetail>) -> some View {
+        alert(
+            "Speech recognition restricted",
+            isPresented: store.binding.destination.alert.isSelected(.speechRecognitionRestricted)
+        ) {
+            Button("Continue without recording") {
+                store.continueWithoutRecording()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
       """
       Your device does not support speech recognition and so your meeting will not be recorded.
       """
-    )
-  }
+            )
+        }
+    }
 }
 
 #Preview {
   NavigationStack {
-    SyncUpDetailView(
-      store: Store(initialState: SyncUpDetail.State(syncUp: .mock)) {
-        SyncUpDetail()
-      }
-    )
+    SyncUpDetailView(state: SyncUpDetail(syncUp: .mock))
   }
 }

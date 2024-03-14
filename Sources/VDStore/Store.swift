@@ -277,7 +277,7 @@ public struct Store<State>: Sendable {
 		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
 		_ value: DIValue
 	) -> Store {
-		transformDI {
+        di {
 			$0.with(keyPath, value)
 		}
 	}
@@ -286,7 +286,7 @@ public struct Store<State>: Sendable {
 	/// - Parameters:
 	///  - transform: A closure that transforms the store's dependencies.
 	/// - Returns: A new store with the transformed dependencies.
-	public nonisolated func transformDI(
+	public nonisolated func di(
 		_ transform: @escaping (StoreDIValues) -> StoreDIValues
 	) -> Store {
 		Store(box: box) { [diModifier] in
@@ -301,7 +301,7 @@ public struct Store<State>: Sendable {
 	public nonisolated func transformDI(
 		_ transform: @escaping (inout StoreDIValues) -> Void
 	) -> Store {
-		transformDI {
+        di {
 			var result = $0
 			transform(&result)
 			return result
@@ -354,4 +354,8 @@ public extension StoreDIValues {
 			stores[ObjectIdentifier(T.self)] = store
 		}
 	}
+}
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+extension Store: Observable {
 }

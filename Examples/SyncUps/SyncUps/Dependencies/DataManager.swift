@@ -2,7 +2,7 @@ import VDStore
 import Foundation
 
 struct DataManager: Sendable {
-  var load: @Sendable (_ from: URL) throws -> Data
+  var load: @Sendable (_ from: URL) async throws -> Data
   var save: @Sendable (Data, _ to: URL) async throws -> Void
 }
 
@@ -12,29 +12,32 @@ extension DataManager {
     save: { data, url in try data.write(to: url) }
   )
 
-  static let testValue = Self()
+    static let testValue = Self { _ in
+        Data()
+    } save: { _, _ in
+    }
 }
 
 extension StoreDIValues {
 
   @StoreDIValue
-  var dataManager: DataManager = valueFor(live: .liveValue, test: .testValue)
+  var dataManager: DataManager = valueFor(live: DataManager.liveValue, test: DataManager.testValue)
 }
 
 extension DataManager {
 
   static func mock(initialData: Data? = nil) -> Self {
-    let data = LockIsolated(initialData)
+    let data = ActorIsolated(initialData)
     return Self(
       load: { _ in
-        guard let data = data.value
+          guard let data = await data.value
         else {
           struct FileNotFound: Error {}
           throw FileNotFound()
         }
         return data
       },
-      save: { newData, _ in data.setValue(newData) }
+      save: { newData, _ in await data.set(newData) }
     )
   }
 

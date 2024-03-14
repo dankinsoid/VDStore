@@ -1,9 +1,8 @@
 import SwiftUI
-import Tagged
 
 struct SyncUp: Equatable, Identifiable, Codable {
 
-  let id: Tagged<Self, UUID>
+  let id: UUID
   var attendees: [Attendee] = []
   var duration: Duration = .seconds(60 * 5)
   var meetings: [Meeting] = []
@@ -16,14 +15,16 @@ struct SyncUp: Equatable, Identifiable, Codable {
 }
 
 struct Attendee: Equatable, Identifiable, Codable {
-  let id: Tagged<Self, UUID>
+  let id: UUID
   var name = ""
 }
 
 struct Meeting: Equatable, Identifiable, Codable {
-  let id: Tagged<Self, UUID>
+  let id: UUID
   let date: Date
   var transcript: String
+    
+    static let mock = Meeting(id: UUID(), date: Date(), transcript: "Lorem ipsum dolor sit amet")
 }
 
 enum Theme: String, CaseIterable, Equatable, Identifiable, Codable {

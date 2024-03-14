@@ -4,12 +4,7 @@ import SwiftUI
 @main
 struct SyncUpsApp: App {
 
-    let store = Store(AppFeature()).transformDI {
-        if ProcessInfo.processInfo.environment["UITesting"] == "true" {
-            $0.dataManager = .mock()
-        }
-    }
-    .saveOnChange
+    let store = Store(AppFeature())
 
     var body: some Scene {
         WindowGroup {
@@ -21,7 +16,15 @@ struct SyncUpsApp: App {
                 // NB: Don't run application when testing so that it doesn't interfere with tests.
                 EmptyView()
             } else {
-                AppView(store: store)
+                AppView(
+                    store: store
+                        .transformDI {
+                            if ProcessInfo.processInfo.environment["UITesting"] == "true" {
+                                $0.dataManager = .mock()
+                            }
+                        }
+                        .saveOnChange
+                )
             }
         }
     }

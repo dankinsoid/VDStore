@@ -17,7 +17,7 @@ public extension Store {
 
 	/// Adds a middleware to the store.
 	func middleware(_ middleware: StoreMiddleware) -> Store {
-		transformDI {
+		di {
 			$0.middleware(middleware)
 		}
 	}

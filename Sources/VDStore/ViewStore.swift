@@ -27,8 +27,7 @@ public struct ViewStore<State>: DynamicProperty {
 		case let .store(store):
 			result = store
 		}
-		return result
-			.transformDI(transformDI)
+		return result.di(transformDI)
 	}
 
 	public var binding: Binding<State> {
@@ -95,7 +94,6 @@ extension EnvironmentValues {
 	}
 }
 
-@MainActor
 public extension Store {
 
 	/// SwiftUI binding to store's state.
@@ -106,6 +104,11 @@ public extension Store {
 			state = $0
 		}
 	}
+    
+    /// SwiftUI environment values. Available in SwiftUI view hierarchy.
+    var env: EnvironmentValues {
+        Environment(\.self).wrappedValue
+    }
 }
 
 @available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)

@@ -1,10 +1,11 @@
 import VDStore
-import Speech
+@preconcurrency import Speech
 import SwiftUI
+import VDFlow
 
 struct RecordMeeting: Equatable {
-    
-    var alert: Alert?
+
+    var alert = Alert()
     var secondsElapsed = 0
     var speakerIndex = 0
     var syncUp: SyncUp
@@ -14,205 +15,209 @@ struct RecordMeeting: Equatable {
         self.syncUp.duration - .seconds(self.secondsElapsed)
     }
     
-    enum Alert {
-        case confirmDiscard
-        case confirmSave
+    @Steps
+    struct Alert: Equatable {
+        var endMeeting = true
+        var speechRecognizerFailed
     }
     
-    enum Delegate {
-        case save(transcript: String)
-    }
+    static let mock = RecordMeeting(syncUp: .engineeringMock)
+}
+
+@MainActor
+protocol RecordMeetingDelegate {
+    func savePath(transcript: String)
+}
+
+@StoreDIValuesList
+extension StoreDIValues {
+    var recordMeetingDelegate: RecordMeetingDelegate?
 }
 
 extension Store<RecordMeeting> {
 
-  var body: some ReducerOf<Self> {
-    Reduce { state, action in
-      switch action {
-      case .alert(.presented(.confirmDiscard)):
-        return .run { _ in
-          await self.dismiss()
-        }
+    func confirmDiscard() {
+        di.dismiss()
+    }
+    
+    func save() {
+        state.syncUp.meetings.insert(
+            Meeting(
+                id: di.uuid(),
+                date: Date(),//di.now,
+                transcript: state.transcript
+            ),
+            at: 0
+        )
+        di.recordMeetingDelegate?.savePath(transcript: state.transcript)
+        di.dismiss()
+    }
 
-      case .alert(.presented(.confirmSave)):
-        return .run { [transcript = state.transcript] send in
-          await send(.delegate(.save(transcript: transcript)))
-          await self.dismiss()
-        }
+    func endMeetingButtonTapped() {
+        state.alert.endMeeting = true
+    }
 
-      case .alert:
-        return .none
-
-      case .delegate:
-        return .none
-
-      case .endMeetingButtonTapped:
-        state.alert = .endMeeting(isDiscardable: true)
-        return .none
-
-      case .nextButtonTapped:
+    func nextButtonTapped() {
         guard state.speakerIndex < state.syncUp.attendees.count - 1
         else {
-          state.alert = .endMeeting(isDiscardable: false)
-          return .none
+            state.alert.endMeeting = false
+            return
         }
         state.speakerIndex += 1
         state.secondsElapsed =
-          state.speakerIndex * Int(state.syncUp.durationPerAttendee.components.seconds)
-        return .none
+        state.speakerIndex * Int(state.syncUp.durationPerAttendee.components.seconds)
+    }
 
-      case .onTask:
-        return .run { send in
-          let authorization =
-            await self.speechClient.authorizationStatus() == .notDetermined
-            ? self.speechClient.requestAuthorization()
-            : self.speechClient.authorizationStatus()
-
-          await withTaskGroup(of: Void.self) { group in
+    func onTask() async {
+        let authorization =
+        await di.speechClient.authorizationStatus() == .notDetermined
+        ? di.speechClient.requestAuthorization()
+        : di.speechClient.authorizationStatus()
+        
+        await withTaskGroup(of: Void.self) { group in
             if authorization == .authorized {
-              group.addTask {
-                await self.startSpeechRecognition(send: send)
-              }
+                group.addTask {
+                    await startSpeechRecognition()
+                }
             }
             group.addTask {
-              await self.startTimer(send: send)
+//                for await _ in di.clock.timer(interval: .seconds(1)) {
+//                    await send(.timerTick)
+//                }
             }
-          }
         }
+    }
 
-      case .timerTick:
-        guard state.alert == nil
-        else { return .none }
+    func timerTick() {
+        guard state.alert.selected == nil else { return }
 
         state.secondsElapsed += 1
 
         let secondsPerAttendee = Int(state.syncUp.durationPerAttendee.components.seconds)
         if state.secondsElapsed.isMultiple(of: secondsPerAttendee) {
-          if state.speakerIndex == state.syncUp.attendees.count - 1 {
-            return .run { [transcript = state.transcript] send in
-              await send(.delegate(.save(transcript: transcript)))
-              await self.dismiss()
+            if state.speakerIndex == state.syncUp.attendees.count - 1 {
+                save()
+                return
             }
-          }
-          state.speakerIndex += 1
+            state.speakerIndex += 1
         }
+        
+    }
 
-        return .none
+    func startSpeechRecognition() async {
+        do {
+            let speechTask = await di.speechClient.startTask(SFSpeechAudioBufferRecognitionRequest())
+            for try await result in speechTask {
+                state.transcript = result.bestTranscription.formattedString
+            }
+        } catch {
+            speechFailure()
+        }
+    }
 
-      case .speechFailure:
+    func speechFailure() {
         if !state.transcript.isEmpty {
-          state.transcript += " ❌"
+            state.transcript += " ❌"
         }
-        state.alert = .speechRecognizerFailed
-        return .none
-
-      case let .speechResult(result):
-        state.transcript = result.bestTranscription.formattedString
-        return .none
-      }
+        state.alert.speechRecognizerFailed.select()
     }
-    .ifLet(\.$alert, action: \.alert)
-  }
-
-  private func startSpeechRecognition(send: Send<Action>) async {
-    do {
-      let speechTask = await self.speechClient.startTask(SFSpeechAudioBufferRecognitionRequest())
-      for try await result in speechTask {
-        await send(.speechResult(result))
-      }
-    } catch {
-      await send(.speechFailure)
-    }
-  }
-
-  private func startTimer(send: Send<Action>) async {
-    for await _ in self.clock.timer(interval: .seconds(1)) {
-      await send(.timerTick)
-    }
-  }
 }
 
 struct RecordMeetingView: View {
-  @Bindable var store: StoreOf<RecordMeeting>
-
-  var body: some View {
-    ZStack {
-      RoundedRectangle(cornerRadius: 16)
-        .fill(store.syncUp.theme.mainColor)
-
-      VStack {
-        MeetingHeaderView(
-          secondsElapsed: store.secondsElapsed,
-          durationRemaining: store.durationRemaining,
-          theme: store.syncUp.theme
-        )
-        MeetingTimerView(
-          syncUp: store.syncUp,
-          speakerIndex: store.speakerIndex
-        )
-        MeetingFooterView(
-          syncUp: store.syncUp,
-          nextButtonTapped: {
-            store.send(.nextButtonTapped)
-          },
-          speakerIndex: store.speakerIndex
-        )
-      }
+    
+    @ViewStore var state: RecordMeeting
+    
+    init(state: RecordMeeting) {
+        self.state = state
     }
-    .padding()
-    .foregroundColor(store.syncUp.theme.accentColor)
-    .navigationBarTitleDisplayMode(.inline)
-    .toolbar {
-      ToolbarItem(placement: .cancellationAction) {
-        Button("End meeting") {
-          store.send(.endMeetingButtonTapped)
+    
+    init(store: Store<RecordMeeting>) {
+        _state = ViewStore(store: store)
+    }
+    
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(state.syncUp.theme.mainColor)
+            
+            VStack {
+                MeetingHeaderView(
+                    secondsElapsed: state.secondsElapsed,
+                    durationRemaining: state.durationRemaining,
+                    theme: state.syncUp.theme
+                )
+                MeetingTimerView(
+                    syncUp: state.syncUp,
+                    speakerIndex: state.speakerIndex
+                )
+                MeetingFooterView(
+                    syncUp: state.syncUp,
+                    nextButtonTapped: {
+                        $state.nextButtonTapped()
+                    },
+                    speakerIndex: state.speakerIndex
+                )
+            }
         }
-      }
+        .padding()
+        .foregroundColor(state.syncUp.theme.accentColor)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("End meeting") {
+                    $state.endMeetingButtonTapped()
+                }
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+        .endMeetingAlert(store: $state)
+        .speechRecognizerFailedAlert(store: $state)
+        .task {
+            await $state.onTask()
+        }
     }
-    .navigationBarBackButtonHidden(true)
-    .alert($store.scope(state: \.alert, action: \.alert))
-    .task { await store.send(.onTask).finish() }
-  }
 }
 
-extension AlertState where Action == RecordMeeting.Action.Alert {
-  static func endMeeting(isDiscardable: Bool) -> Self {
-    Self {
-      TextState("End meeting?")
-    } actions: {
-      ButtonState(action: .confirmSave) {
-        TextState("Save and end")
-      }
-      if isDiscardable {
-        ButtonState(role: .destructive, action: .confirmDiscard) {
-          TextState("Discard")
-        }
-      }
-      ButtonState(role: .cancel) {
-        TextState("Resume")
-      }
-    } message: {
-      TextState("You are ending the meeting early. What would you like to do?")
-    }
-  }
+@MainActor
+extension View {
 
-  static let speechRecognizerFailed = Self {
-    TextState("Speech recognition failure")
-  } actions: {
-    ButtonState(role: .cancel) {
-      TextState("Continue meeting")
+    func endMeetingAlert(store: Store<RecordMeeting>) -> some View {
+        alert(
+            "End meeting?",
+            isPresented: store.binding.alert.isSelected(.endMeeting)
+        ) {
+            Button("Save and end") {
+                store.save()
+            }
+            if store.state.alert.endMeeting {
+                Button("Discard", role: .destructive) {
+                    store.confirmDiscard()
+                }
+            }
+            Button("Resume", role: .cancel) {}
+        } message: {
+            Text("You are ending the meeting early. What would you like to do?")
+        }
     }
-    ButtonState(role: .destructive, action: .confirmDiscard) {
-      TextState("Discard meeting")
-    }
-  } message: {
-    TextState(
+
+    func speechRecognizerFailedAlert(store: Store<RecordMeeting>) -> some View {
+        alert(
+            "Speech recognition failure",
+            isPresented: store.binding.alert.isSelected(.speechRecognizerFailed)
+        ) {
+            Button("Continue meeting", role: .cancel) {}
+            Button("Discard meeting", role: .destructive) {
+                store.confirmDiscard()
+            }
+        } message: {
+            Text(
       """
       The speech recognizer has failed for some reason and so your meeting will no longer be \
       recorded. What do you want to do?
       """
-    )
-  }
+            )
+        }
+    }
 }
 
 struct MeetingHeaderView: View {
@@ -365,10 +370,6 @@ struct MeetingFooterView: View {
 
 #Preview {
   NavigationStack {
-    RecordMeetingView(
-      store: Store(initialState: RecordMeeting.State(syncUp: .mock)) {
-        RecordMeeting()
-      }
-    )
+    RecordMeetingView(state: RecordMeeting(syncUp: .mock))
   }
 }
