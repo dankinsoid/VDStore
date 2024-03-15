@@ -96,7 +96,7 @@ public struct Store<State>: Sendable {
 
 	/// Injected dependencies.
 	public nonisolated var di: StoreDIValues {
-		diModifier(StoreDIValues().with(store: self))
+		diModifier(StoreDIValues.current.with(store: self))
 	}
 
 	/// A publisher that emits when state changes.
@@ -108,27 +108,30 @@ public struct Store<State>: Sendable {
 	///   .sink { ... }
 	/// ```
 	public nonisolated var publisher: StorePublisher<State> {
-		StorePublisher(upstream: box.eraseToAnyPublisher())
+		StorePublisher(upstream: withDI(box))
 	}
 
-    /// An async sequence that emits when state changes.
-    ///
-    /// This sequence supports dynamic member lookup so that you can pluck out a specific field in the state:
-    ///
-    /// ```swift
-    /// for await state in store.async.alert { ... }
-    /// ```
-    public nonisolated var async: StoreAsyncSequence<State> {
-        StoreAsyncSequence(upstream: box.eraseToAnyPublisher())
-    }
+	/// An async sequence that emits when state changes.
+	///
+	/// This sequence supports dynamic member lookup so that you can pluck out a specific field in the state:
+	///
+	/// ```swift
+	/// for await state in store.async.alert { ... }
+	/// ```
+	public nonisolated var async: StoreAsyncSequence<State> {
+		StoreAsyncSequence(upstream: withDI(box))
+	}
 
 	/// The publisher that emits before the state is going to be changed. Required by `SwiftUI`.
-    nonisolated var willSet: AnyPublisher<Void, Never> {
-		box.willSet.eraseToAnyPublisher()
+	nonisolated var willSet: AnyPublisher<Void, Never> {
+		withDI(box.willSet)
 	}
 
 	private let box: StoreBox<State>
-	private let diModifier: @Sendable (StoreDIValues) -> StoreDIValues
+	private let _diModifier: @Sendable (StoreDIValues) -> StoreDIValues
+	private nonisolated var diModifier: @Sendable (StoreDIValues) -> StoreDIValues {
+		{ _diModifier($0.with(store: self)) }
+	}
 
 	public var wrappedValue: State {
 		get { state }
@@ -150,12 +153,12 @@ public struct Store<State>: Sendable {
 		self.init(box: StoreBox(state))
 	}
 
-    nonisolated init(
+	nonisolated init(
 		box: StoreBox<State>,
 		di: @escaping @Sendable (StoreDIValues) -> StoreDIValues = { $0 }
 	) {
 		self.box = box
-		diModifier = di
+		_diModifier = di
 	}
 
 	/// Scopes the store to one that exposes child state.
@@ -196,7 +199,7 @@ public struct Store<State>: Sendable {
 	) -> Store<ChildState> {
 		Store<ChildState>(
 			box: StoreBox<ChildState>(parent: box, get: getter, set: setter),
-			di: { [self] in diModifier($0).with(store: self) }
+			di: { [self] in diModifier($0) }
 		)
 	}
 
@@ -277,7 +280,7 @@ public struct Store<State>: Sendable {
 		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
 		_ value: DIValue
 	) -> Store {
-        di {
+		di {
 			$0.with(keyPath, value)
 		}
 	}
@@ -289,8 +292,8 @@ public struct Store<State>: Sendable {
 	public nonisolated func di(
 		_ transform: @escaping (StoreDIValues) -> StoreDIValues
 	) -> Store {
-		Store(box: box) { [diModifier] in
-			transform(diModifier($0))
+		Store(box: box) { [_diModifier] in
+			transform(_diModifier($0))
 		}
 	}
 
@@ -301,7 +304,7 @@ public struct Store<State>: Sendable {
 	public nonisolated func transformDI(
 		_ transform: @escaping (inout StoreDIValues) -> Void
 	) -> Store {
-        di {
+		di {
 			var result = $0
 			transform(&result)
 			return result
@@ -310,20 +313,31 @@ public struct Store<State>: Sendable {
 
 	/// Suspends the store from updating the UI until the block returns.
 	public func update<T>(_ update: @MainActor () throws -> T) rethrows -> T {
-        box.startUpdate()
+		box.startUpdate()
 		defer { box.endUpdate() }
-		let result = try update()
-		return result
+		return try withDIValues(operation: update)
+	}
+
+	public nonisolated func withDIValues<T>(operation: () throws -> T) rethrows -> T {
+		try StoreDIValues.$current.withValue(diModifier, operation: operation)
+	}
+
+	public nonisolated func withDIValues<T>(operation: () async throws -> T) async rethrows -> T {
+		try await StoreDIValues.$current.withValue(diModifier, operation: operation)
+	}
+
+	func forceUpdateIfNeeded() {
+		box.forceUpdate()
 	}
 }
 
 public extension Store where State: MutableCollection {
 
-    nonisolated subscript(_ index: State.Index) -> Store<State.Element> {
+	nonisolated subscript(_ index: State.Index) -> Store<State.Element> {
 		scope(index)
 	}
 
-    nonisolated func scope(_ index: State.Index) -> Store<State.Element> {
+	nonisolated func scope(_ index: State.Index) -> Store<State.Element> {
 		scope {
 			$0[index]
 		} set: {
@@ -337,8 +351,8 @@ public var suspendAllSyncStoreUpdates = true
 public extension StoreDIValues {
 
 	private var stores: [ObjectIdentifier: Any] {
-		get { self[\.stores] ?? [:] }
-		set { self[\.stores] = newValue }
+		get { get(\.stores, or: [:]) }
+		set { set(\.stores, newValue) }
 	}
 
 	/// Injected store with the given state type.
@@ -356,6 +370,12 @@ public extension StoreDIValues {
 	}
 }
 
-@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
-extension Store: Observable {
+private extension Store {
+
+	nonisolated func withDI<P: Publisher>(_ publisher: P) -> AnyPublisher<P.Output, P.Failure> {
+		DIPublisher(base: publisher, modifier: diModifier).eraseToAnyPublisher()
+	}
 }
+
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+extension Store: Observable {}

@@ -4,8 +4,8 @@ public extension StoreDIValues {
 
 	/// Returns the storage of async tasks. Allows to store and cancel tasks.
 	var tasksStorage: TasksStorage {
-		get { self[\.tasksStorage] ?? .shared }
-		set { self[\.tasksStorage] = newValue }
+		get { get(\.tasksStorage, or: .shared) }
+		set { set(\.tasksStorage, newValue) }
 	}
 }
 
@@ -61,7 +61,10 @@ public extension Store {
 		id: AnyHashable,
 		_ task: @escaping @Sendable () async throws -> T
 	) -> Task<T, Error> {
-		Task(operation: task).store(in: di.tasksStorage, id: id)
+		Task {
+			try await withDIValues(operation: task)
+		}
+		.store(in: di.tasksStorage, id: id)
 	}
 
 	/// Create a task with cancellation id.
@@ -94,10 +97,10 @@ public extension Store {
 public extension Task {
 
 	/// Store the task in the storage by it cancellation id.
-    @MainActor
+	@MainActor
 	@discardableResult
 	func store(in storage: TasksStorage, id: AnyHashable) -> Task {
-        storage.add(for: id, self)
+		storage.add(for: id, self)
 		return self
 	}
 }

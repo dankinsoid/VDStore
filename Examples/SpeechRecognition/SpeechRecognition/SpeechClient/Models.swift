@@ -5,90 +5,90 @@ import Speech
 // them easier to use and test.
 
 struct SpeechRecognitionMetadata: Equatable {
-  var averagePauseDuration: TimeInterval
-  var speakingRate: Double
-  var voiceAnalytics: VoiceAnalytics?
+	var averagePauseDuration: TimeInterval
+	var speakingRate: Double
+	var voiceAnalytics: VoiceAnalytics?
 }
 
 struct SpeechRecognitionResult: Equatable {
-  var bestTranscription: Transcription
-  var isFinal: Bool
-  var speechRecognitionMetadata: SpeechRecognitionMetadata?
-  var transcriptions: [Transcription]
+	var bestTranscription: Transcription
+	var isFinal: Bool
+	var speechRecognitionMetadata: SpeechRecognitionMetadata?
+	var transcriptions: [Transcription]
 }
 
 struct Transcription: Equatable {
-  var formattedString: String
-  var segments: [TranscriptionSegment]
+	var formattedString: String
+	var segments: [TranscriptionSegment]
 }
 
 struct TranscriptionSegment: Equatable {
-  var alternativeSubstrings: [String]
-  var confidence: Float
-  var duration: TimeInterval
-  var substring: String
-  var timestamp: TimeInterval
+	var alternativeSubstrings: [String]
+	var confidence: Float
+	var duration: TimeInterval
+	var substring: String
+	var timestamp: TimeInterval
 }
 
 struct VoiceAnalytics: Equatable {
-  var jitter: AcousticFeature
-  var pitch: AcousticFeature
-  var shimmer: AcousticFeature
-  var voicing: AcousticFeature
+	var jitter: AcousticFeature
+	var pitch: AcousticFeature
+	var shimmer: AcousticFeature
+	var voicing: AcousticFeature
 }
 
 struct AcousticFeature: Equatable {
-  var acousticFeatureValuePerFrame: [Double]
-  var frameDuration: TimeInterval
+	var acousticFeatureValuePerFrame: [Double]
+	var frameDuration: TimeInterval
 }
 
 extension SpeechRecognitionMetadata {
-  init(_ speechRecognitionMetadata: SFSpeechRecognitionMetadata) {
-    self.averagePauseDuration = speechRecognitionMetadata.averagePauseDuration
-    self.speakingRate = speechRecognitionMetadata.speakingRate
-    self.voiceAnalytics = speechRecognitionMetadata.voiceAnalytics.map(VoiceAnalytics.init)
-  }
+	init(_ speechRecognitionMetadata: SFSpeechRecognitionMetadata) {
+		averagePauseDuration = speechRecognitionMetadata.averagePauseDuration
+		speakingRate = speechRecognitionMetadata.speakingRate
+		voiceAnalytics = speechRecognitionMetadata.voiceAnalytics.map(VoiceAnalytics.init)
+	}
 }
 
 extension SpeechRecognitionResult {
-  init(_ speechRecognitionResult: SFSpeechRecognitionResult) {
-    self.bestTranscription = Transcription(speechRecognitionResult.bestTranscription)
-    self.isFinal = speechRecognitionResult.isFinal
-    self.speechRecognitionMetadata = speechRecognitionResult.speechRecognitionMetadata
-      .map(SpeechRecognitionMetadata.init)
-    self.transcriptions = speechRecognitionResult.transcriptions.map(Transcription.init)
-  }
+	init(_ speechRecognitionResult: SFSpeechRecognitionResult) {
+		bestTranscription = Transcription(speechRecognitionResult.bestTranscription)
+		isFinal = speechRecognitionResult.isFinal
+		speechRecognitionMetadata = speechRecognitionResult.speechRecognitionMetadata
+			.map(SpeechRecognitionMetadata.init)
+		transcriptions = speechRecognitionResult.transcriptions.map(Transcription.init)
+	}
 }
 
 extension Transcription {
-  init(_ transcription: SFTranscription) {
-    self.formattedString = transcription.formattedString
-    self.segments = transcription.segments.map(TranscriptionSegment.init)
-  }
+	init(_ transcription: SFTranscription) {
+		formattedString = transcription.formattedString
+		segments = transcription.segments.map(TranscriptionSegment.init)
+	}
 }
 
 extension TranscriptionSegment {
-  init(_ transcriptionSegment: SFTranscriptionSegment) {
-    self.alternativeSubstrings = transcriptionSegment.alternativeSubstrings
-    self.confidence = transcriptionSegment.confidence
-    self.duration = transcriptionSegment.duration
-    self.substring = transcriptionSegment.substring
-    self.timestamp = transcriptionSegment.timestamp
-  }
+	init(_ transcriptionSegment: SFTranscriptionSegment) {
+		alternativeSubstrings = transcriptionSegment.alternativeSubstrings
+		confidence = transcriptionSegment.confidence
+		duration = transcriptionSegment.duration
+		substring = transcriptionSegment.substring
+		timestamp = transcriptionSegment.timestamp
+	}
 }
 
 extension VoiceAnalytics {
-  init(_ voiceAnalytics: SFVoiceAnalytics) {
-    self.jitter = AcousticFeature(voiceAnalytics.jitter)
-    self.pitch = AcousticFeature(voiceAnalytics.pitch)
-    self.shimmer = AcousticFeature(voiceAnalytics.shimmer)
-    self.voicing = AcousticFeature(voiceAnalytics.voicing)
-  }
+	init(_ voiceAnalytics: SFVoiceAnalytics) {
+		jitter = AcousticFeature(voiceAnalytics.jitter)
+		pitch = AcousticFeature(voiceAnalytics.pitch)
+		shimmer = AcousticFeature(voiceAnalytics.shimmer)
+		voicing = AcousticFeature(voiceAnalytics.voicing)
+	}
 }
 
 extension AcousticFeature {
-  init(_ acousticFeature: SFAcousticFeature) {
-    self.acousticFeatureValuePerFrame = acousticFeature.acousticFeatureValuePerFrame
-    self.frameDuration = acousticFeature.frameDuration
-  }
+	init(_ acousticFeature: SFAcousticFeature) {
+		acousticFeatureValuePerFrame = acousticFeature.acousticFeatureValuePerFrame
+		frameDuration = acousticFeature.frameDuration
+	}
 }

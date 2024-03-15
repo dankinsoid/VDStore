@@ -18,7 +18,7 @@ public struct StorePublisher<State>: Publisher {
 	public subscript<Value: Equatable>(
 		dynamicMember keyPath: KeyPath<State, Value>
 	) -> StorePublisher<Value> {
-        StorePublisher<Value>(upstream: upstream.map(keyPath).removeDuplicates().eraseToAnyPublisher())
+		StorePublisher<Value>(upstream: upstream.map(keyPath).removeDuplicates().eraseToAnyPublisher())
 	}
 
 	/// Returns the resulting sequence of a given key path.
@@ -26,45 +26,45 @@ public struct StorePublisher<State>: Publisher {
 	public subscript<Value>(
 		dynamicMember keyPath: KeyPath<State, Value>
 	) -> StorePublisher<Value> {
-        StorePublisher<Value>(upstream: upstream.map(keyPath).eraseToAnyPublisher())
+		StorePublisher<Value>(upstream: upstream.map(keyPath).eraseToAnyPublisher())
 	}
 }
 
 /// An async sequence and publisher of store state.
 @dynamicMemberLookup
 public struct StoreAsyncSequence<State>: AsyncSequence {
-    
-    public typealias AsyncIterator = AsyncStream<State>.AsyncIterator
-    public typealias Element = State
-    
-    let upstream: AnyPublisher<State, Never>
-    
-    /// Returns the resulting sequence of a given key path.
-    public subscript<Value: Equatable>(
-        dynamicMember keyPath: KeyPath<State, Value>
-    ) -> StoreAsyncSequence<Value> {
-        StoreAsyncSequence<Value>(upstream: upstream.map(keyPath).removeDuplicates().eraseToAnyPublisher())
-    }
-    
-    /// Returns the resulting sequence of a given key path.
-    @_disfavoredOverload
-    public subscript<Value>(
-        dynamicMember keyPath: KeyPath<State, Value>
-    ) -> StoreAsyncSequence<Value> {
-        StoreAsyncSequence<Value>(upstream: upstream.map(keyPath).eraseToAnyPublisher())
-    }
-    
-    public func makeAsyncIterator() -> AsyncStream<State>.AsyncIterator {
-        AsyncStream { continuation in
-            let cancellable = upstream.sink { _ in
-                continuation.finish()
-            } receiveValue: {
-                continuation.yield($0)
-            }
-            continuation.onTermination = { _ in
-                cancellable.cancel()
-            }
-        }
-        .makeAsyncIterator()
-    }
+
+	public typealias AsyncIterator = AsyncStream<State>.AsyncIterator
+	public typealias Element = State
+
+	let upstream: AnyPublisher<State, Never>
+
+	/// Returns the resulting sequence of a given key path.
+	public subscript<Value: Equatable>(
+		dynamicMember keyPath: KeyPath<State, Value>
+	) -> StoreAsyncSequence<Value> {
+		StoreAsyncSequence<Value>(upstream: upstream.map(keyPath).removeDuplicates().eraseToAnyPublisher())
+	}
+
+	/// Returns the resulting sequence of a given key path.
+	@_disfavoredOverload
+	public subscript<Value>(
+		dynamicMember keyPath: KeyPath<State, Value>
+	) -> StoreAsyncSequence<Value> {
+		StoreAsyncSequence<Value>(upstream: upstream.map(keyPath).eraseToAnyPublisher())
+	}
+
+	public func makeAsyncIterator() -> AsyncStream<State>.AsyncIterator {
+		AsyncStream { continuation in
+			let cancellable = upstream.sink { _ in
+				continuation.finish()
+			} receiveValue: {
+				continuation.yield($0)
+			}
+			continuation.onTermination = { _ in
+				cancellable.cancel()
+			}
+		}
+		.makeAsyncIterator()
+	}
 }

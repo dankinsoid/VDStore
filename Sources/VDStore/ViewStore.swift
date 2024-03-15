@@ -75,8 +75,8 @@ public struct ViewStore<State>: DynamicProperty {
 extension StoreDIValues {
 
 	var isViewStore: Bool {
-		get { self[\.isViewStore] ?? false }
-		set { self[\.isViewStore] = newValue }
+		get { get(\.isViewStore, or: false) }
+		set { set(\.isViewStore, newValue) }
 	}
 }
 
@@ -104,11 +104,11 @@ public extension Store {
 			state = $0
 		}
 	}
-    
-    /// SwiftUI environment values. Available in SwiftUI view hierarchy.
-    var env: EnvironmentValues {
-        Environment(\.self).wrappedValue
-    }
+
+	/// SwiftUI environment values. Available in SwiftUI view hierarchy.
+	var env: EnvironmentValues {
+		Environment(\.self).wrappedValue
+	}
 }
 
 @available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)

@@ -36,8 +36,8 @@ public extension StoreDIValues {
 extension StoreDIValues {
 
 	var middlewares: Middlewares {
-		get { self[\.middlewares] ?? Middlewares() }
-		set { self[\.middlewares] = newValue }
+		get { get(\.middlewares, or: Middlewares()) }
+		set { set(\.middlewares, newValue) }
 	}
 }
 

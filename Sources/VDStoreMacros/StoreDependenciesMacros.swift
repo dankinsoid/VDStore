@@ -37,10 +37,10 @@ public struct StoreDIValueMacro: AccessorMacro {
 
 		return [
 			"""
-			get { self[\\.\(raw: identifier).self] ?? \(raw: defaultValue) }
+			get { get(\\.\(raw: identifier), or: \(raw: defaultValue)) }
 			""",
 			"""
-			set {  self[\\.\(raw: identifier).self] = newValue }
+			set {  set(\\.\(raw: identifier), newValue) }
 			""",
 		]
 	}

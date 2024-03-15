@@ -3,8 +3,8 @@ import Combine
 extension StoreDIValues {
 
 	var cancellableStorage: CancellableStorage {
-		get { self[\.cancellableStorage] ?? .shared }
-		set { self[\.cancellableStorage] = newValue }
+		get { get(\.cancellableStorage, or: .shared) }
+		set { set(\.cancellableStorage, newValue) }
 	}
 
 	/// Stores cancellables for Combine subscriptions.
