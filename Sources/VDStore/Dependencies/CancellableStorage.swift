@@ -1,10 +1,11 @@
 import Combine
+import Dependencies
 
-extension StoreDIValues {
+extension DependencyValues {
 
 	var cancellableStorage: CancellableStorage {
-		get { self[\.cancellableStorage] ?? .shared }
-		set { self[\.cancellableStorage] = newValue }
+        get { self[CancellableStorage.self] }
+        set { self[CancellableStorage.self] = newValue }
 	}
 
 	/// Stores cancellables for Combine subscriptions.
@@ -23,4 +24,9 @@ final class CancellableStorage {
 	var set: Set<AnyCancellable> = []
 
 	nonisolated init() {}
+}
+
+extension CancellableStorage: DependencyKey {
+    
+    static let liveValue = CancellableStorage.shared
 }

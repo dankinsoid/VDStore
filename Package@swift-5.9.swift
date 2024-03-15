@@ -17,9 +17,16 @@ let package = Package(
 	],
 	dependencies: [
 		.package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.2"),
+        .package(url: "https://github.com/pointfreeco/swift-dependencies.git", from: "1.2.2")
 	],
 	targets: [
-		.target(name: "VDStore", dependencies: ["VDStoreMacros"]),
+		.target(
+            name: "VDStore",
+            dependencies: [
+                "VDStoreMacros",
+                .product(name: "Dependencies", package: "swift-dependencies")
+            ]
+        ),
 		.macro(
 			name: "VDStoreMacros",
 			dependencies: [

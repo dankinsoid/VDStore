@@ -1,6 +1,7 @@
 #if canImport(SwiftUI)
 import Combine
 import SwiftUI
+import Dependencies
 
 /// `Store` wrapper for using in SwiftUI views. Updates the view when the state changes.
 /// It can be created with initial state value or with a given store.
@@ -27,7 +28,7 @@ public struct ViewStore<State>: DynamicProperty {
 		case let .store(store):
 			result = store
 		}
-		return result.di(transformDI)
+		return result.transformDependency(transformDI)
 	}
 
 	public var binding: Binding<State> {
@@ -40,7 +41,7 @@ public struct ViewStore<State>: DynamicProperty {
 		} else {
 			property = .stateObject(
 				StateObject(
-					wrappedValue: Observable(store: store.di(\.isViewStore, true))
+					wrappedValue: Observable(store: store.dependency(\.isViewStore, true))
 				)
 			)
 		}
@@ -72,12 +73,17 @@ public struct ViewStore<State>: DynamicProperty {
 	}
 }
 
-extension StoreDIValues {
+extension DependencyValues {
 
 	var isViewStore: Bool {
-		get { self[\.isViewStore] ?? false }
-		set { self[\.isViewStore] = newValue }
+        get { self[IsViewStoreKey.self] }
+        set { self[IsViewStoreKey.self] = newValue }
 	}
+
+    private enum IsViewStoreKey: DependencyKey {
+
+        static let liveValue = false
+    }
 }
 
 @available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
@@ -85,10 +91,10 @@ extension EnvironmentValues {
 
 	private enum DIValueKey: EnvironmentKey {
 
-		static let defaultValue: (StoreDIValues) -> StoreDIValues = { $0 }
+		static let defaultValue: (inout DependencyValues) -> Void = { _ in }
 	}
 
-	var storeDIValues: (StoreDIValues) -> StoreDIValues {
+	var storeDIValues: (inout DependencyValues) -> Void {
 		get { self[DIValueKey.self] }
 		set { self[DIValueKey.self] = newValue }
 	}
@@ -115,25 +121,19 @@ public extension Store {
 public extension View {
 
 	/// Injects the dependencies into the view stores.
-	func storeDIValues(_ transform: @escaping (StoreDIValues) -> StoreDIValues) -> some View {
+	func transformStoreDependency(_ transform: @escaping (inout DependencyValues) -> Void) -> some View {
 		transformEnvironment(\.storeDIValues) { current in
 			current = { [current] dependencies in
-				transform(current(dependencies))
+                current(&dependencies)
+				transform(&dependencies)
 			}
 		}
 	}
 
 	/// Injects the dependencies into the view stores.
-	func storeDIValues(_ dependencies: StoreDIValues) -> some View {
-		storeDIValues {
-			$0.merging(with: dependencies)
-		}
-	}
-
-	/// Injects the dependencies into the view stores.
-	func storeDIValue<D>(_ keyPath: WritableKeyPath<StoreDIValues, D>, _ value: D) -> some View {
-		storeDIValues { deps in
-			deps.with(keyPath, value)
+	func storeDependency<D>(_ keyPath: WritableKeyPath<DependencyValues, D>, _ value: D) -> some View {
+        transformStoreDependency { deps in
+            deps[keyPath: keyPath] = value
 		}
 	}
 }

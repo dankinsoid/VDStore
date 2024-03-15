@@ -1,4 +1,5 @@
 import Combine
+import Dependencies
 import Foundation
 
 /// A store represents the runtime that powers the application. It is the object that you will pass
@@ -95,8 +96,10 @@ public struct Store<State>: Sendable {
 	}
 
 	/// Injected dependencies.
-	public nonisolated var di: StoreDIValues {
-		diModifier(StoreDIValues().with(store: self))
+	public nonisolated var di: DependencyValues {
+        withDependencies {
+            Dependency(\.self).wrappedValue
+        }
 	}
 
 	/// A publisher that emits when state changes.
@@ -108,7 +111,7 @@ public struct Store<State>: Sendable {
 	///   .sink { ... }
 	/// ```
 	public nonisolated var publisher: StorePublisher<State> {
-		StorePublisher(upstream: box.eraseToAnyPublisher())
+		StorePublisher(upstream: withDependencies(box))
 	}
 
     /// An async sequence that emits when state changes.
@@ -119,16 +122,22 @@ public struct Store<State>: Sendable {
     /// for await state in store.async.alert { ... }
     /// ```
     public nonisolated var async: StoreAsyncSequence<State> {
-        StoreAsyncSequence(upstream: box.eraseToAnyPublisher())
+        StoreAsyncSequence(upstream: withDependencies(box))
     }
 
 	/// The publisher that emits before the state is going to be changed. Required by `SwiftUI`.
     nonisolated var willSet: AnyPublisher<Void, Never> {
-		box.willSet.eraseToAnyPublisher()
+        withDependencies(box.willSet)
 	}
 
 	private let box: StoreBox<State>
-	private let diModifier: @Sendable (StoreDIValues) -> StoreDIValues
+    private nonisolated var diModifier: @Sendable (inout DependencyValues) -> Void {
+        {
+            $0.set(store: self)
+            _diModifier(&$0)
+        }
+    }
+	private let _diModifier: @Sendable (inout DependencyValues) -> Void
 
 	public var wrappedValue: State {
 		get { state }
@@ -152,10 +161,10 @@ public struct Store<State>: Sendable {
 
     nonisolated init(
 		box: StoreBox<State>,
-		di: @escaping @Sendable (StoreDIValues) -> StoreDIValues = { $0 }
+		di: @escaping @Sendable (inout DependencyValues) -> Void = { _ in }
 	) {
 		self.box = box
-		diModifier = di
+		_diModifier = di
 	}
 
 	/// Scopes the store to one that exposes child state.
@@ -196,7 +205,7 @@ public struct Store<State>: Sendable {
 	) -> Store<ChildState> {
 		Store<ChildState>(
 			box: StoreBox<ChildState>(parent: box, get: getter, set: setter),
-			di: { [self] in diModifier($0).with(store: self) }
+            di: diModifier
 		)
 	}
 
@@ -273,12 +282,12 @@ public struct Store<State>: Sendable {
 	///  - keyPath: A key path to the value in the store's dependencies.
 	///  - value: The value to inject.
 	/// - Returns: A new store with the injected value.
-	public nonisolated func di<DIValue>(
-		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
+	public nonisolated func dependency<DIValue>(
+		_ keyPath: WritableKeyPath<DependencyValues, DIValue>,
 		_ value: DIValue
 	) -> Store {
-        di {
-			$0.with(keyPath, value)
+        transformDependency {
+            $0[keyPath: keyPath] = value
 		}
 	}
 
@@ -286,35 +295,25 @@ public struct Store<State>: Sendable {
 	/// - Parameters:
 	///  - transform: A closure that transforms the store's dependencies.
 	/// - Returns: A new store with the transformed dependencies.
-	public nonisolated func di(
-		_ transform: @escaping (StoreDIValues) -> StoreDIValues
+	public nonisolated func transformDependency(
+		_ transform: @escaping (inout DependencyValues) -> Void
 	) -> Store {
-		Store(box: box) { [diModifier] in
-			transform(diModifier($0))
-		}
-	}
-
-	/// Transforms the store's injected dependencies.
-	/// - Parameters:
-	///  - transform: A closure that transforms the store's dependencies.
-	/// - Returns: A new store with the transformed dependencies.
-	public nonisolated func transformDI(
-		_ transform: @escaping (inout StoreDIValues) -> Void
-	) -> Store {
-        di {
-			var result = $0
-			transform(&result)
-			return result
-		}
+        Store(box: box) { [_diModifier] in
+            _diModifier(&$0)
+            transform(&$0)
+        }
 	}
 
 	/// Suspends the store from updating the UI until the block returns.
 	public func update<T>(_ update: @MainActor () throws -> T) rethrows -> T {
         box.startUpdate()
 		defer { box.endUpdate() }
-		let result = try update()
-		return result
+        return try withDependencies(update)
 	}
+    
+    public nonisolated func withDependencies<T>(_ operation: () throws -> T) rethrows -> T {
+        try Dependencies.withDependencies(diModifier, operation: operation)
+    }
 }
 
 public extension Store where State: MutableCollection {
@@ -334,11 +333,11 @@ public extension Store where State: MutableCollection {
 
 public var suspendAllSyncStoreUpdates = true
 
-public extension StoreDIValues {
+public extension DependencyValues {
 
 	private var stores: [ObjectIdentifier: Any] {
-		get { self[\.stores] ?? [:] }
-		set { self[\.stores] = newValue }
+        get { self[StoresDependencyKey.self] }
+        set { self[StoresDependencyKey.self] = newValue }
 	}
 
 	/// Injected store with the given state type.
@@ -347,13 +346,23 @@ public extension StoreDIValues {
 	}
 
 	/// Inject the given store as a dependency.
-	func with<T>(
+	mutating func set<T>(
 		store: Store<T>
-	) -> StoreDIValues {
-		transform(\.stores) { stores in
-			stores[ObjectIdentifier(T.self)] = store
-		}
+	) {
+        stores[ObjectIdentifier(T.self)] = store
 	}
+}
+
+private extension Store {
+    
+    nonisolated func withDependencies<P: Publisher>(_ publisher: P) -> AnyPublisher<P.Output, P.Failure> {
+        DependenciesPublisher(base: publisher, modifier: diModifier).eraseToAnyPublisher()
+    }
+}
+
+private enum StoresDependencyKey: DependencyKey {
+    
+    static let liveValue: [ObjectIdentifier: Any] = [:]
 }
 
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)

@@ -1,12 +1,18 @@
 import Foundation
+import Dependencies
 
-public extension StoreDIValues {
+public extension DependencyValues {
 
 	/// Returns the storage of async tasks. Allows to store and cancel tasks.
 	var tasksStorage: TasksStorage {
-		get { self[\.tasksStorage] ?? .shared }
-		set { self[\.tasksStorage] = newValue }
+        get { self[TasksStorage.self] }
+        set { self[TasksStorage.self] = newValue }
 	}
+}
+
+extension TasksStorage: DependencyKey {
+
+    public static let liveValue = TasksStorage.shared
 }
 
 /// The storage of async tasks. Allows to store and cancel tasks.
@@ -70,7 +76,9 @@ public extension Store {
 		id: AnyHashable,
 		_ task: @escaping @Sendable () async -> T
 	) -> Task<T, Never> {
-		Task(operation: task).store(in: di.tasksStorage, id: id)
+        withDependencies {
+            Task(operation: task).store(in: di.tasksStorage, id: id)
+        }
 	}
 
 	/// Cancel an async store action.

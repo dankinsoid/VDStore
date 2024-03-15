@@ -15,9 +15,15 @@ let package = Package(
 		.library(name: "VDStore", targets: ["VDStore"]),
 	],
 	dependencies: [
+        .package(url: "https://github.com/pointfreeco/swift-dependencies.git", from: "1.2.2")
 	],
 	targets: [
-		.target(name: "VDStore", dependencies: []),
+		.target(
+            name: "VDStore",
+            dependencies: [
+                .product(name: "Dependencies", package: "swift-dependencies")
+            ]
+        ),
 		.testTarget(name: "VDStoreTests", dependencies: ["VDStore"]),
 	]
 )

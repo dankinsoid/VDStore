@@ -1,4 +1,5 @@
 import Foundation
+import Dependencies
 
 /// The middleware for the store.
 /// This middleware is responsible for handling the actions execution chain.
@@ -8,7 +9,7 @@ public protocol StoreMiddleware {
 	func execute<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Context,
-		dependencies: StoreDIValues,
+		dependencies: DependencyValues,
 		next: (Args) -> Res
 	) -> Res
 }
@@ -17,28 +18,30 @@ public extension Store {
 
 	/// Adds a middleware to the store.
 	func middleware(_ middleware: StoreMiddleware) -> Store {
-		di {
-			$0.middleware(middleware)
+		transformDependency {
+            $0.set(middleware: middleware)
 		}
 	}
 }
 
-public extension StoreDIValues {
+public extension DependencyValues {
 
 	/// Adds a middleware.
-	func middleware(_ middleware: StoreMiddleware) -> StoreDIValues {
-		transform(\.middlewares.middlewares) {
-			$0.append(middleware)
-		}
+	mutating func set(middleware: StoreMiddleware) {
+		middlewares.middlewares.append(middleware)
 	}
 }
 
-extension StoreDIValues {
+extension DependencyValues {
 
 	var middlewares: Middlewares {
-		get { self[\.middlewares] ?? Middlewares() }
-		set { self[\.middlewares] = newValue }
+        get { self[Middlewares.self] }
+        set { self[Middlewares.self] = newValue }
 	}
+}
+
+extension Middlewares: DependencyKey {
+    static let liveValue = Middlewares()
 }
 
 struct Middlewares: StoreMiddleware {
@@ -48,7 +51,7 @@ struct Middlewares: StoreMiddleware {
 	func execute<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Context,
-		dependencies: StoreDIValues,
+		dependencies: DependencyValues,
 		next: (Args) -> Res
 	) -> Res {
 		var call = next
