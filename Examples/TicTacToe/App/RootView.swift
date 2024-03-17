@@ -1,13 +1,11 @@
 import AppCore
 import AppSwiftUI
 import AppUIKit
-import AuthenticationClientLive
-import ComposableArchitecture
+import VDStore
 import SwiftUI
 
 private let readMe = """
-This application demonstrates how to build a moderately complex application in the Composable \
-Architecture.
+This application demonstrates how to build a moderately complex application in the VDStore.
 
 It includes a login with two-factor authentication, navigation flows, side effects, game logic, \
 and a full test suite.
@@ -28,31 +26,36 @@ enum GameType: Identifiable {
 }
 
 struct RootView: View {
-	let store = Store(initialState: TicTacToe.State.login(.init())) {
-		TicTacToe.body._printChanges()
-	}
+
+    @ViewStore(
+        Store(TicTacToe.login()).transformDI {
+            $0.logoutButtonDelegate = $0.store(for: TicTacToe.self)
+            $0.loginDelegate = $0.store(for: TicTacToe.self)
+        }
+    )
+    private var state
 
 	@State var showGame: GameType?
 
 	var body: some View {
-		NavigationStack {
-			Form {
-				Text(readMe)
-
-				Section {
-					Button("SwiftUI version") { showGame = .swiftui }
-					Button("UIKit version") { showGame = .uikit }
-				}
-			}
-			.sheet(item: $showGame) { gameType in
-				if gameType == .swiftui {
-					AppView(store: store)
-				} else {
-					UIKitAppView(store: store)
-				}
-			}
-			.navigationTitle("Tic-Tac-Toe")
-		}
+        NavigationStack {
+            Form {
+                Text(readMe)
+                
+                Section {
+                    Button("SwiftUI version") { showGame = .swiftui }
+                    Button("UIKit version") { showGame = .uikit }
+                }
+            }
+            .sheet(item: $showGame) { gameType in
+                if gameType == .swiftui {
+                    AppView(store: $state)
+                } else {
+                    UIKitAppView(store: $state)
+                }
+            }
+            .navigationTitle("Tic-Tac-Toe")
+        }
 	}
 }
 

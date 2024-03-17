@@ -34,23 +34,26 @@ extension StoreDIValues {
 	var recordMeetingDelegate: RecordMeetingDelegate?
 }
 
+@Actions
 extension Store<RecordMeeting> {
 
 	func confirmDiscard() {
-		di.dismiss()
+        di.pop()
+        cancel(Self.onTask)
 	}
 
 	func save() {
 		state.syncUp.meetings.insert(
 			Meeting(
 				id: di.uuid(),
-				date: Date(), // di.now,
+                date: di.date.now,
 				transcript: state.transcript
 			),
 			at: 0
 		)
 		di.recordMeetingDelegate?.savePath(transcript: state.transcript)
-		di.dismiss()
+        di.pop()
+        cancel(Self.onTask)
 	}
 
 	func endMeetingButtonTapped() {
@@ -80,10 +83,12 @@ extension Store<RecordMeeting> {
 					await startSpeechRecognition()
 				}
 			}
+
 			group.addTask {
-				//                for await _ in di.clock.timer(interval: .seconds(1)) {
-				//                    await send(.timerTick)
-				//                }
+                while !Task.isCancelled {
+                    await timerTick()
+                    try? await di.continuousClock.sleep(for: .seconds(1))
+                }
 			}
 		}
 	}
@@ -226,7 +231,7 @@ struct MeetingHeaderView: View {
 
 	var body: some View {
 		VStack {
-			ProgressView(value: progress)
+            ProgressView(value: max(0, min(1, progress)))
 				.progressViewStyle(MeetingProgressViewStyle(theme: theme))
 			HStack {
 				VStack(alignment: .leading) {

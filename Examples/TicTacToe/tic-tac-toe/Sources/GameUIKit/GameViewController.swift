@@ -1,12 +1,14 @@
-import ComposableArchitecture
+import VDStore
+import Combine
 import GameCore
 import UIKit
 
 public final class GameViewController: UIViewController {
-	let store: StoreOf<Game>
+	@Store private var state: Game
+    private var cancellableSet: Set<AnyCancellable> = []
 
-	public init(store: StoreOf<Game>) {
-		self.store = store
+	public init(store: Store<Game>) {
+		_state = store
 		super.init(nibName: nil, bundle: nil)
 	}
 
@@ -107,41 +109,43 @@ public final class GameViewController: UIViewController {
 				])
 			}
 
-		observe { [weak self] in
-			guard let self else { return }
-			titleLabel.text = self.store.title
-			playAgainButton.isHidden = self.store.isPlayAgainButtonHidden
-
-			for (rowIdx, row) in self.store.rows.enumerated() {
-				for (colIdx, label) in row.enumerated() {
-					let button = cells[rowIdx][colIdx]
-					button.setTitle(label, for: .normal)
-					button.isEnabled = self.store.isGameEnabled
-				}
-			}
-		}
+        $state.publisher
+            .removeDuplicates()
+            .sink { state in
+                titleLabel.text = state.title
+                playAgainButton.isHidden = state.isPlayAgainButtonHidden
+                
+                for (rowIdx, row) in state.rows.enumerated() {
+                    for (colIdx, label) in row.enumerated() {
+                        let button = cells[rowIdx][colIdx]
+                        button.setTitle(label, for: .normal)
+                        button.isEnabled = state.isGameEnabled
+                    }
+                }
+            }
+        .store(in: &cancellableSet)
 	}
 
-	@objc private func gridCell11Tapped() { store.send(.cellTapped(row: 0, column: 0)) }
-	@objc private func gridCell12Tapped() { store.send(.cellTapped(row: 0, column: 1)) }
-	@objc private func gridCell13Tapped() { store.send(.cellTapped(row: 0, column: 2)) }
-	@objc private func gridCell21Tapped() { store.send(.cellTapped(row: 1, column: 0)) }
-	@objc private func gridCell22Tapped() { store.send(.cellTapped(row: 1, column: 1)) }
-	@objc private func gridCell23Tapped() { store.send(.cellTapped(row: 1, column: 2)) }
-	@objc private func gridCell31Tapped() { store.send(.cellTapped(row: 2, column: 0)) }
-	@objc private func gridCell32Tapped() { store.send(.cellTapped(row: 2, column: 1)) }
-	@objc private func gridCell33Tapped() { store.send(.cellTapped(row: 2, column: 2)) }
+	@objc private func gridCell11Tapped() { $state.cellTapped(row: 0, column: 0) }
+	@objc private func gridCell12Tapped() { $state.cellTapped(row: 0, column: 1) }
+	@objc private func gridCell13Tapped() { $state.cellTapped(row: 0, column: 2) }
+	@objc private func gridCell21Tapped() { $state.cellTapped(row: 1, column: 0) }
+	@objc private func gridCell22Tapped() { $state.cellTapped(row: 1, column: 1) }
+	@objc private func gridCell23Tapped() { $state.cellTapped(row: 1, column: 2) }
+	@objc private func gridCell31Tapped() { $state.cellTapped(row: 2, column: 0) }
+	@objc private func gridCell32Tapped() { $state.cellTapped(row: 2, column: 1) }
+	@objc private func gridCell33Tapped() { $state.cellTapped(row: 2, column: 2) }
 
 	@objc private func quitButtonTapped() {
-		store.send(.quitButtonTapped)
+        $state.quitButtonTapped()
 	}
 
 	@objc private func playAgainButtonTapped() {
-		store.send(.playAgainButtonTapped)
+        $state.playAgainButtonTapped()
 	}
 }
 
-private extension Game.State {
+private extension Game {
 	var rows: Three<Three<String>> { board.map { $0.map { $0?.label ?? "" } } }
 	var isGameEnabled: Bool { !board.hasWinner && !board.isFilled }
 	var isPlayAgainButtonHidden: Bool { !board.hasWinner && !board.isFilled }

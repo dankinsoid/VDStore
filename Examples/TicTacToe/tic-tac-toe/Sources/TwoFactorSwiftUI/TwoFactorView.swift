@@ -1,14 +1,15 @@
 import AuthenticationClient
-import ComposableArchitecture
+import VDStore
+import VDFlow
 import SwiftUI
 import TwoFactorCore
 
-@ViewAction(for: TwoFactor.self)
 public struct TwoFactorView: View {
-	@Bindable public var store: StoreOf<TwoFactor>
 
-	public init(store: StoreOf<TwoFactor>) {
-		self.store = store
+	@ViewStore public var state: TwoFactor
+
+	public init(store: Store<TwoFactor>) {
+        _state = ViewStore(store)
 	}
 
 	public var body: some View {
@@ -16,7 +17,7 @@ public struct TwoFactorView: View {
 			Text(#"To confirm the second factor enter "1234" into the form."#)
 
 			Section {
-				TextField("1234", text: $store.code)
+                TextField("1234", text: $state.binding.code)
 					.keyboardType(.numberPad)
 			}
 
@@ -29,23 +30,27 @@ public struct TwoFactorView: View {
 					UIApplication.shared.sendAction(
 						#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
 					)
-					send(.submitButtonTapped)
+                    Task {
+                        await $state.submitButtonTapped()
+                    }
 				}
-				.disabled(store.isSubmitButtonDisabled)
+				.disabled(state.isSubmitButtonDisabled)
 
-				if store.isActivityIndicatorVisible {
+				if state.isActivityIndicatorVisible {
 					Spacer()
 					ProgressView()
 				}
 			}
 		}
-		.alert($store.scope(state: \.alert, action: \.alert))
-		.disabled(store.isFormDisabled)
+        .alert(state.flow.alert, isPresented: $state.binding.flow.isSelected(.alert)) {
+            Button("Ok") {}
+        }
+		.disabled(state.isFormDisabled)
 		.navigationTitle("Confirmation Code")
 	}
 }
 
-private extension TwoFactor.State {
+private extension TwoFactor {
 	var isActivityIndicatorVisible: Bool { isTwoFactorRequestInFlight }
 	var isFormDisabled: Bool { isTwoFactorRequestInFlight }
 	var isSubmitButtonDisabled: Bool { !isFormValid }
@@ -54,16 +59,15 @@ private extension TwoFactor.State {
 #Preview {
 	NavigationStack {
 		TwoFactorView(
-			store: Store(initialState: TwoFactor.State(token: "deadbeef")) {
-				TwoFactor()
-			} withDependencies: {
-				$0.authenticationClient.login = { @Sendable _, _ in
-					AuthenticationResponse(token: "deadbeef", twoFactorRequired: false)
-				}
-				$0.authenticationClient.twoFactor = { @Sendable _, _ in
-					AuthenticationResponse(token: "deadbeef", twoFactorRequired: false)
-				}
-			}
+			store: Store(TwoFactor(token: "deadbeef"))
+                .transformDI {
+                    $0.authenticationClient.login = { @Sendable _, _ in
+                        AuthenticationResponse(token: "deadbeef", twoFactorRequired: false)
+                    }
+                    $0.authenticationClient.twoFactor = { @Sendable _, _ in
+                        AuthenticationResponse(token: "deadbeef", twoFactorRequired: false)
+                    }
+                }
 		)
 	}
 }

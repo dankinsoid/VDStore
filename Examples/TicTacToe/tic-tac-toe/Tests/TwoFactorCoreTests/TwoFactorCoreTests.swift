@@ -1,5 +1,5 @@
 import AuthenticationClient
-import ComposableArchitecture
+import VDStore
 import TwoFactorCore
 import XCTest
 

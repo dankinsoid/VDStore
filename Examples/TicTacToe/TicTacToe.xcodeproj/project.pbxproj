@@ -12,7 +12,6 @@
 		CA0A579F242AA7F800BA537D /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0A579E242AA7F800BA537D /* RootView.swift */; };
 		DCB9EA0126B20D4B00497C03 /* AppSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = DCB9EA0026B20D4B00497C03 /* AppSwiftUI */; };
 		DCB9EA0326B20D4B00497C03 /* AppUIKit in Frameworks */ = {isa = PBXBuildFile; productRef = DCB9EA0226B20D4B00497C03 /* AppUIKit */; };
-		DCB9EA0526B20E4C00497C03 /* AuthenticationClientLive in Frameworks */ = {isa = PBXBuildFile; productRef = DCB9EA0426B20E4C00497C03 /* AuthenticationClientLive */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,7 +30,6 @@
 			files = (
 				DCB9EA0126B20D4B00497C03 /* AppSwiftUI in Frameworks */,
 				DCB9EA0326B20D4B00497C03 /* AppUIKit in Frameworks */,
-				DCB9EA0526B20E4C00497C03 /* AuthenticationClientLive in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,7 +83,6 @@
 			packageProductDependencies = (
 				DCB9EA0026B20D4B00497C03 /* AppSwiftUI */,
 				DCB9EA0226B20D4B00497C03 /* AppUIKit */,
-				DCB9EA0426B20E4C00497C03 /* AuthenticationClientLive */,
 			);
 			productName = TicTacToe;
 			productReference = CA0A5761242AA3A800BA537D /* TicTacToe.app */;
@@ -347,10 +344,6 @@
 		DCB9EA0226B20D4B00497C03 /* AppUIKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AppUIKit;
-		};
-		DCB9EA0426B20E4C00497C03 /* AuthenticationClientLive */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = AuthenticationClientLive;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

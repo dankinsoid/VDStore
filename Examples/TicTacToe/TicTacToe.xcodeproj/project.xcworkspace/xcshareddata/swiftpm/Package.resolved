@@ -3,7 +3,7 @@
     {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-syntax",
+      "location" : "https://github.com/apple/swift-syntax.git",
       "state" : {
         "revision" : "64889f0c732f210a935a0ad7cda38f77f876262d",
         "version" : "509.1.1"
@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/dankinsoid/VDFlow",
       "state" : {
-        "revision" : "d53882224e3f88ac489d26231719cdb320213b5c",
-        "version" : "4.12.0"
+        "revision" : "e80a2ebd4231739633e76aae116ab792bbb47bfe",
+        "version" : "4.21.0"
       }
     }
   ],

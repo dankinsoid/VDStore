@@ -1,16 +1,17 @@
 import AuthenticationClient
-import ComposableArchitecture
+import VDStore
+import VDFlow
 import LoginCore
 import SwiftUI
 import TwoFactorCore
 import TwoFactorSwiftUI
 
-@ViewAction(for: Login.self)
 public struct LoginView: View {
-	@Bindable public var store: StoreOf<Login>
 
-	public init(store: StoreOf<Login>) {
-		self.store = store
+	@ViewStore public var state: Login
+
+	public init(store: Store<Login>) {
+		_state = ViewStore(store)
 	}
 
 	public var body: some View {
@@ -24,12 +25,12 @@ public struct LoginView: View {
 			)
 
 			Section {
-				TextField("blob@pointfree.co", text: $store.email)
+				TextField("blob@pointfree.co", text: $state.binding.email)
 					.autocapitalization(.none)
 					.keyboardType(.emailAddress)
 					.textContentType(.emailAddress)
 
-				SecureField("••••••••", text: $store.password)
+                SecureField("••••••••", text: $state.binding.password)
 			}
 
 			Button {
@@ -40,28 +41,32 @@ public struct LoginView: View {
 				_ = UIApplication.shared.sendAction(
 					#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
 				)
-				send(.loginButtonTapped)
+                Task {
+                    await $state.loginButtonTapped()
+                }
 			} label: {
 				HStack {
 					Text("Log in")
-					if store.isActivityIndicatorVisible {
+					if state.isActivityIndicatorVisible {
 						Spacer()
 						ProgressView()
 					}
 				}
 			}
-			.disabled(store.isLoginButtonDisabled)
+			.disabled(state.isLoginButtonDisabled)
 		}
-		.disabled(store.isFormDisabled)
-		.alert($store.scope(state: \.alert, action: \.alert))
-		.navigationDestination(item: $store.scope(state: \.twoFactor, action: \.twoFactor)) { store in
-			TwoFactorView(store: store)
+		.disabled(state.isFormDisabled)
+        .alert(state.flow.alert, isPresented: $state.binding.flow.isSelected(.alert)) {
+            Button("Ok") {}
+        }
+        .navigationDestination(isPresented: $state.binding.flow.isSelected(.twoFactor)) {
+            TwoFactorView(store: $state.flow.twoFactor)
 		}
 		.navigationTitle("Login")
 	}
 }
 
-private extension Login.State {
+private extension Login {
 	var isActivityIndicatorVisible: Bool { isLoginRequestInFlight }
 	var isFormDisabled: Bool { isLoginRequestInFlight }
 	var isLoginButtonDisabled: Bool { !isFormValid }
@@ -70,9 +75,7 @@ private extension Login.State {
 #Preview {
 	NavigationStack {
 		LoginView(
-			store: Store(initialState: Login.State()) {
-				Login()
-			} withDependencies: {
+            store: Store(Login()).transformDI {
 				$0.authenticationClient.login = { @Sendable _, _ in
 					AuthenticationResponse(token: "deadbeef", twoFactorRequired: false)
 				}

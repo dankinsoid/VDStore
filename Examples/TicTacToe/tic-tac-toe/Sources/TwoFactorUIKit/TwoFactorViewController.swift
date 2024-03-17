@@ -1,12 +1,14 @@
-import ComposableArchitecture
+import VDStore
 import TwoFactorCore
 import UIKit
+import Combine
 
-@ViewAction(for: TwoFactor.self)
 public final class TwoFactorViewController: UIViewController {
-	public let store: StoreOf<TwoFactor>
 
-	public init(store: StoreOf<TwoFactor>) {
+	public let store: Store<TwoFactor>
+    private var cancellableSet: Set<AnyCancellable> = []
+
+	public init(store: Store<TwoFactor>) {
 		self.store = store
 		super.init(nibName: nil, bundle: nil)
 	}
@@ -61,34 +63,40 @@ public final class TwoFactorViewController: UIViewController {
 
 		var alertController: UIAlertController?
 
-		observe { [weak self] in
-			guard let self else { return }
-			activityIndicator.isHidden = store.isActivityIndicatorHidden
-			codeTextField.text = store.code
-			loginButton.isEnabled = store.isLoginButtonEnabled
-
-			if let store = store.scope(state: \.alert, action: \.alert),
-			   alertController == nil
-			{
-				alertController = UIAlertController(store: store)
-				present(alertController!, animated: true, completion: nil)
-			} else if store.alert == nil, alertController != nil {
-				alertController?.dismiss(animated: true)
-				alertController = nil
-			}
-		}
+        store.publisher
+            .removeDuplicates()
+            .sink { [weak self] state in
+                guard let self else { return }
+                activityIndicator.isHidden = state.isActivityIndicatorHidden
+                codeTextField.text = state.code
+                loginButton.isEnabled = state.isLoginButtonEnabled
+                
+                if state.flow.selected == .alert,
+                   alertController == nil
+                {
+                    alertController = UIAlertController(title: state.flow.alert, message: nil, preferredStyle: .alert)
+                    alertController?.addAction(UIAlertAction(title: "Ok", style: .default, handler: nil))
+                    present(alertController!, animated: true, completion: nil)
+                } else if state.flow.selected != .alert, alertController != nil {
+                    alertController?.dismiss(animated: true)
+                    alertController = nil
+                }
+            }
+            .store(in: &cancellableSet)
 	}
 
 	@objc private func codeTextFieldChanged(sender: UITextField) {
-		store.code = sender.text ?? ""
+        store.state.code = sender.text ?? ""
 	}
 
 	@objc private func loginButtonTapped() {
-		send(.submitButtonTapped)
+        Task {
+            await store.submitButtonTapped()
+        }
 	}
 }
 
-private extension TwoFactor.State {
+private extension TwoFactor {
 	var isActivityIndicatorHidden: Bool { !isTwoFactorRequestInFlight }
 	var isLoginButtonEnabled: Bool { isFormValid && !isTwoFactorRequestInFlight }
 }

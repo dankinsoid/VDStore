@@ -1,83 +1,47 @@
 import AuthenticationClient
-import ComposableArchitecture
+import VDStore
+import VDFlow
 import Dispatch
 import TwoFactorCore
 
-@Reducer
-public struct Login: Sendable {
-	@ObservableState
-	public struct State: Equatable {
-		@Presents public var alert: AlertState<Action.Alert>?
-		public var email = ""
-		public var isFormValid = false
-		public var isLoginRequestInFlight = false
-		public var password = ""
-		@Presents public var twoFactor: TwoFactor.State?
+public struct Login: Sendable, Equatable {
 
-		public init() {}
-	}
+    public var flow: Flow = .none
+    public var email = ""
+    public var isLoginRequestInFlight = false
+    public var password = ""
 
-	public enum Action: Sendable, ViewAction {
-		case alert(PresentationAction<Alert>)
-		case loginResponse(Result<AuthenticationResponse, Error>)
-		case twoFactor(PresentationAction<TwoFactor.Action>)
-		case view(View)
+    public init() {}
 
-		public enum Alert: Equatable, Sendable {}
+    public var isFormValid: Bool {
+        !email.isEmpty && !password.isEmpty
+    }
 
-		@CasePathable
-		public enum View: BindableAction, Sendable {
-			case binding(BindingAction<State>)
-			case loginButtonTapped
-		}
-	}
+    @Steps
+    public struct Flow: Equatable, Sendable {
+        public var twoFactor: TwoFactor = TwoFactor(token: "")
+        public var alert = ""
+        public var none
+    }
+}
 
-	@Dependency(\.authenticationClient) var authenticationClient
+@Actions
+public extension Store<Login> {
 
-	public init() {}
-
-	public var body: some Reducer<State, Action> {
-		BindingReducer(action: \.view)
-		Reduce { state, action in
-			switch action {
-			case .alert:
-				return .none
-
-			case let .loginResponse(.success(response)):
-				state.isLoginRequestInFlight = false
-				if response.twoFactorRequired {
-					state.twoFactor = TwoFactor.State(token: response.token)
-				}
-				return .none
-
-			case let .loginResponse(.failure(error)):
-				state.alert = AlertState { TextState(error.localizedDescription) }
-				state.isLoginRequestInFlight = false
-				return .none
-
-			case .twoFactor:
-				return .none
-
-			case .view(.binding):
-				state.isFormValid = !state.email.isEmpty && !state.password.isEmpty
-				return .none
-
-			case .view(.loginButtonTapped):
-				state.isLoginRequestInFlight = true
-				return .run { [email = state.email, password = state.password] send in
-					await send(
-						.loginResponse(
-							Result {
-								try await authenticationClient.login(email: email, password: password)
-							}
-						)
-					)
-				}
-			}
-		}
-		.ifLet(\.$alert, action: \.alert)
-		.ifLet(\.$twoFactor, action: \.twoFactor) {
-			TwoFactor()
-		}
-	}
+    func loginButtonTapped() async {
+        state.isLoginRequestInFlight = true
+        defer {
+            state.isLoginRequestInFlight = false
+        }
+        do {
+            let response = try await di.authenticationClient.login(state.email, state.password)
+            if response.twoFactorRequired {
+                state.flow.$twoFactor.select(with:  TwoFactor(token: response.token))
+            } else {
+                di.loginDelegate?.didSucceedLogin()
+            }
+        } catch {
+            state.flow.$alert.select(with: error.localizedDescription)
+        }
+    }
 }

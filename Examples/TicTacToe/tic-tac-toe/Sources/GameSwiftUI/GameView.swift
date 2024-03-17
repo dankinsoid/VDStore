@@ -1,24 +1,26 @@
-import ComposableArchitecture
+import VDStore
+import VDFlow
 import GameCore
 import SwiftUI
 
 public struct GameView: View {
-	let store: StoreOf<Game>
 
-	public init(store: StoreOf<Game>) {
-		self.store = store
+	@ViewStore private var state: Game
+
+	public init(store: Store<Game>) {
+		_state = ViewStore(store)
 	}
 
 	public var body: some View {
 		GeometryReader { proxy in
 			VStack(spacing: 0.0) {
 				VStack {
-					Text(store.title)
+					Text(state.title)
 						.font(.title)
 
-					if store.isPlayAgainButtonVisible {
+					if state.isPlayAgainButtonVisible {
 						Button("Play again?") {
-							store.send(.playAgainButtonTapped)
+							$state.playAgainButtonTapped()
 						}
 						.padding(.top, 12)
 						.font(.title)
@@ -31,10 +33,10 @@ public struct GameView: View {
 					rowView(row: 1, proxy: proxy)
 					rowView(row: 2, proxy: proxy)
 				}
-				.disabled(store.isGameDisabled)
+				.disabled(state.isGameDisabled)
 			}
 			.navigationTitle("Tic-tac-toe")
-			.navigationBarItems(leading: Button("Quit") { store.send(.quitButtonTapped) })
+			.navigationBarItems(leading: Button("Quit") { $state.quitButtonTapped() })
 			.navigationBarBackButtonHidden(true)
 		}
 	}
@@ -56,9 +58,9 @@ public struct GameView: View {
 		proxy: GeometryProxy
 	) -> some View {
 		Button {
-			store.send(.cellTapped(row: row, column: column))
+			$state.cellTapped(row: row, column: column)
 		} label: {
-			Text(store.rows[row][column])
+			Text(state.rows[row][column])
 				.frame(width: proxy.size.width / 3, height: proxy.size.width / 3)
 				.background(
 					(row + column).isMultiple(of: 2)
@@ -69,7 +71,7 @@ public struct GameView: View {
 	}
 }
 
-private extension Game.State {
+private extension Game {
 	var rows: [[String]] { board.map { $0.map { $0?.label ?? "" } } }
 	var isGameDisabled: Bool { board.hasWinner || board.isFilled }
 	var isPlayAgainButtonVisible: Bool { board.hasWinner || board.isFilled }
@@ -85,9 +87,7 @@ private extension Game.State {
 #Preview {
 	NavigationStack {
 		GameView(
-			store: Store(initialState: Game.State(oPlayerName: "Blob Jr.", xPlayerName: "Blob Sr.")) {
-				Game()
-			}
+			store: Store(Game(oPlayerName: "Blob Jr.", xPlayerName: "Blob Sr."))
 		)
 	}
 }

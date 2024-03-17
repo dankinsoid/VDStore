@@ -1,74 +1,56 @@
 import AuthenticationClient
 import Combine
-import ComposableArchitecture
+import VDStore
 import Dispatch
+import VDFlow
 
-@Reducer
-public struct TwoFactor: Sendable {
-	@ObservableState
-	public struct State: Equatable {
-		@Presents public var alert: AlertState<Action.Alert>?
-		public var code = ""
-		public var isFormValid = false
-		public var isTwoFactorRequestInFlight = false
-		public let token: String
+public struct TwoFactor: Sendable, Equatable {
+    
+    public var flow: Flow = .none
+    public var code = ""
+    public var isTwoFactorRequestInFlight = false
+    public let token: String
+    
+    public init(token: String) {
+        self.token = token
+    }
+    
+    public var isFormValid: Bool {
+        code.count >= 4
+    }
+    
+    @Steps
+    public struct Flow: Sendable, Equatable {
+        public var alert = ""
+        public var none
+    }
+}
 
-		public init(token: String) {
-			self.token = token
-		}
-	}
+@Actions
+extension Store<TwoFactor> {
 
-	public enum Action: Sendable, ViewAction {
-		case alert(PresentationAction<Alert>)
-		case twoFactorResponse(Result<AuthenticationResponse, Error>)
-		case view(View)
+    public func submitButtonTapped() async {
+        state.isTwoFactorRequestInFlight = true
+        defer {
+            state.isTwoFactorRequestInFlight = false
+        }
+        do {
+            _ = try await di.authenticationClient.twoFactor(state.code, state.token)
+            di.loginDelegate?.didSucceedLogin()
+        } catch {
+            state.flow.$alert.select(with: error.localizedDescription)
+        }
+    }
+}
 
-		public enum Alert: Equatable, Sendable {}
+@MainActor
+public protocol LoginDelegate {
+    
+    func didSucceedLogin()
+}
 
-		@CasePathable
-		public enum View: BindableAction, Sendable {
-			case binding(BindingAction<State>)
-			case submitButtonTapped
-		}
-	}
-
-	@Dependency(\.authenticationClient) var authenticationClient
-
-	public init() {}
-
-	public var body: some ReducerOf<Self> {
-		BindingReducer(action: \.view)
-		Reduce { state, action in
-			switch action {
-			case .alert:
-				return .none
-
-			case let .twoFactorResponse(.failure(error)):
-				state.alert = AlertState { TextState(error.localizedDescription) }
-				state.isTwoFactorRequestInFlight = false
-				return .none
-
-			case .twoFactorResponse(.success):
-				state.isTwoFactorRequestInFlight = false
-				return .none
-
-			case .view(.binding):
-				state.isFormValid = state.code.count >= 4
-				return .none
-
-			case .view(.submitButtonTapped):
-				state.isTwoFactorRequestInFlight = true
-				return .run { [code = state.code, token = state.token] send in
-					await send(
-						.twoFactorResponse(
-							Result {
-								try await authenticationClient.twoFactor(code: code, token: token)
-							}
-						)
-					)
-				}
-			}
-		}
-		.ifLet(\.$alert, action: \.alert)
-	}
+extension StoreDIValues {
+    
+    @StoreDIValue
+    public var loginDelegate: LoginDelegate?
 }

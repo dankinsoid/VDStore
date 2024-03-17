@@ -12,10 +12,9 @@ struct SyncUpForm: Equatable {
 	) {
 		self.focus = focus
 		self.syncUp = syncUp
-		//        if self.syncUp.attendees.isEmpty {
-		//            @Dependency(\.uuid) var uuid
-		//            self.syncUp.attendees.append(Attendee(id: Attendee.ID(uuid())))
-		//        }
+        if self.syncUp.attendees.isEmpty {
+            self.syncUp.attendees.append(Attendee(id: StoreDIValues.current.uuid()))
+        }
 	}
 
 	enum Field: Hashable {

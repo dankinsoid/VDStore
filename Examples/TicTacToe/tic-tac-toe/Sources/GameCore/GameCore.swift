@@ -1,66 +1,50 @@
-import ComposableArchitecture
+import VDStore
+import VDFlow
 import SwiftUI
 
-@Reducer
-public struct Game: Sendable {
-	@ObservableState
-	public struct State: Equatable {
-		public var board: Three<Three<Player?>> = .empty
-		public var currentPlayer: Player = .x
-		public let oPlayerName: String
-		public let xPlayerName: String
+public struct Game: Sendable, Equatable {
+    
+    public var board: Three<Three<Player?>> = .empty
+    public var currentPlayer: Player = .x
+    public let oPlayerName: String
+    public let xPlayerName: String
+    
+    public init(oPlayerName: String, xPlayerName: String) {
+        self.oPlayerName = oPlayerName
+        self.xPlayerName = xPlayerName
+    }
+    
+    public var currentPlayerName: String {
+        switch currentPlayer {
+        case .o: return oPlayerName
+        case .x: return xPlayerName
+        }
+    }
+}
 
-		public init(oPlayerName: String, xPlayerName: String) {
-			self.oPlayerName = oPlayerName
-			self.xPlayerName = xPlayerName
-		}
-
-		public var currentPlayerName: String {
-			switch currentPlayer {
-			case .o: return oPlayerName
-			case .x: return xPlayerName
-			}
-		}
-	}
-
-	public enum Action: Sendable {
-		case cellTapped(row: Int, column: Int)
-		case playAgainButtonTapped
-		case quitButtonTapped
-	}
-
-	@Dependency(\.dismiss) var dismiss
-
-	public init() {}
-
-	public var body: some Reducer<State, Action> {
-		Reduce { state, action in
-			switch action {
-			case let .cellTapped(row, column):
-				guard
-					state.board[row][column] == nil,
-					!state.board.hasWinner
-				else { return .none }
-
-				state.board[row][column] = state.currentPlayer
-
-				if !state.board.hasWinner {
-					state.currentPlayer.toggle()
-				}
-
-				return .none
-
-			case .playAgainButtonTapped:
-				state = Game.State(oPlayerName: state.oPlayerName, xPlayerName: state.xPlayerName)
-				return .none
-
-			case .quitButtonTapped:
-				return .run { _ in
-					await dismiss()
-				}
-			}
-		}
-	}
+@Actions
+extension Store<Game> {
+    
+    public func cellTapped(row: Int, column: Int) {
+        guard
+            state.board[row][column] == nil,
+            !state.board.hasWinner
+        else { return }
+        
+        state.board[row][column] = state.currentPlayer
+        
+        if !state.board.hasWinner {
+            state.currentPlayer.toggle()
+        }
+    }
+    
+    public func playAgainButtonTapped() {
+        state = Game(oPlayerName: state.oPlayerName, xPlayerName: state.xPlayerName)
+    }
+    
+    public func quitButtonTapped() {
+        di.dismiss()
+    }
 }
 
 public enum Player: Equatable, Sendable {

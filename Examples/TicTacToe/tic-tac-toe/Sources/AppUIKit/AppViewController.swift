@@ -1,19 +1,20 @@
 import AppCore
-import ComposableArchitecture
+import VDStore
+import Combine
 import LoginUIKit
 import NewGameUIKit
 import SwiftUI
 import UIKit
 
 public struct UIKitAppView: UIViewControllerRepresentable {
-	let store: StoreOf<TicTacToe>
+	@Store private var state: TicTacToe
 
-	public init(store: StoreOf<TicTacToe>) {
-		self.store = store
+	public init(store: Store<TicTacToe>) {
+		_state = store
 	}
 
 	public func makeUIViewController(context: Context) -> UIViewController {
-		AppViewController(store: store)
+		AppViewController(store: $state)
 	}
 
 	public func updateUIViewController(
@@ -25,10 +26,11 @@ public struct UIKitAppView: UIViewControllerRepresentable {
 }
 
 class AppViewController: UINavigationController {
-	let store: StoreOf<TicTacToe>
+    @Store private var state: TicTacToe
+    private var cancellableSet: Set<AnyCancellable> = []
 
-	init(store: StoreOf<TicTacToe>) {
-		self.store = store
+	init(store: Store<TicTacToe>) {
+        _state = store
 		super.init(nibName: nil, bundle: nil)
 	}
 
@@ -40,14 +42,18 @@ class AppViewController: UINavigationController {
 	override func viewDidLoad() {
 		super.viewDidLoad()
 
-		observe { [weak self] in
-			guard let self else { return }
-			switch store.case {
-			case let .login(store):
-				setViewControllers([LoginViewController(store: store)], animated: false)
-			case let .newGame(store):
-				setViewControllers([NewGameViewController(store: store)], animated: false)
-			}
-		}
+        $state.publisher
+            .map(\.selected)
+            .removeDuplicates()
+            .sink { [weak self] selected in
+                guard let self else { return }
+                switch selected {
+                case .login:
+                    setViewControllers([LoginViewController(store: $state.login)], animated: false)
+                case .newGame:
+                    setViewControllers([NewGameViewController(store: $state.newGame)], animated: false)
+                }
+            }
+            .store(in: &cancellableSet)
 	}
 }

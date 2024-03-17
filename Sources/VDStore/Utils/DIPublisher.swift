@@ -1,5 +1,4 @@
 import Combine
-import Dependencies
 import Foundation
 
 struct DIPublisher<Base: Publisher>: Publisher {
@@ -49,8 +48,8 @@ struct DISubscriber<Base: Subscriber>: Subscriber {
 	}
 
 	func execute<T>(_ operation: () -> T) -> T {
-		StoreDIValues.$current.withValue(values) {
+//		StoreDIValues.$current.withValue(values) {
 			operation()
-		}
+//		}
 	}
 }

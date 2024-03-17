@@ -10,7 +10,7 @@ struct SyncUpDetail: Equatable {
 	@Steps
 	struct Destination: Equatable {
 		var alert = Alert()
-		var edit = SyncUpForm(syncUp: SyncUp(id: .init()))
+        var edit = SyncUpForm(syncUp: SyncUp(id: StoreDIValues.current.uuid()))
 
 		@Steps
 		struct Alert: Equatable {
@@ -48,11 +48,11 @@ extension Store<SyncUpDetail> {
 		state.syncUp.meetings.remove(atOffsets: indices)
 	}
 
-	func confirmDeletion() async {
+	func confirmDeletion() {
 		withAnimation {
 			di.syncUpDetailDelegate?.deleteSyncUp(syncUp: state.syncUp)
 		}
-		di.dismiss()
+        di.pop()
 	}
 
 	func continueWithoutRecording() {
@@ -210,9 +210,7 @@ extension View {
 			isPresented: store.binding.destination.alert.isSelected(.confirmDeletion)
 		) {
 			Button("Yes", role: .destructive) {
-				Task {
-					await store.confirmDeletion()
-				}
+                store.confirmDeletion()
 			}
 			Button("Nevermind", role: .cancel) {}
 		} message: {

@@ -1,49 +1,42 @@
-import ComposableArchitecture
+import VDStore
+import VDFlow
 import GameCore
 
-@Reducer
-public struct NewGame {
-	@ObservableState
-	public struct State: Equatable {
-		@Presents public var game: Game.State?
-		public var oPlayerName = ""
-		public var xPlayerName = ""
+public struct NewGame: Equatable {
 
-		public init() {}
-	}
+    public var flow: Flow = .none
+    public var oPlayerName = ""
+    public var xPlayerName = ""
 
-	public enum Action: BindableAction {
-		case binding(BindingAction<State>)
-		case game(PresentationAction<Game.Action>)
-		case letsPlayButtonTapped
-		case logoutButtonTapped
-	}
+    @Steps
+    public struct Flow: Equatable {
+        public var game: Game = Game(oPlayerName: "", xPlayerName: "")
+        public var none
+    }
+    
+    public init() {
+    }
+}
 
-	public init() {}
+@MainActor
+public protocol LogoutButtonDelegate {
+    func logoutButtonTapped()
+}
 
-	public var body: some Reducer<State, Action> {
-		BindingReducer()
-		Reduce { state, action in
-			switch action {
-			case .binding:
-				return .none
+extension StoreDIValues {
+    @StoreDIValue
+    public var logoutButtonDelegate: LogoutButtonDelegate?
+}
 
-			case .game:
-				return .none
-
-			case .letsPlayButtonTapped:
-				state.game = Game.State(
-					oPlayerName: state.oPlayerName,
-					xPlayerName: state.xPlayerName
-				)
-				return .none
-
-			case .logoutButtonTapped:
-				return .none
-			}
-		}
-		.ifLet(\.$game, action: \.game) {
-			Game()
-		}
-	}
+@Actions
+extension Store<NewGame> {
+    
+    public func letsPlayButtonTapped() {
+        state.flow.$game.select(
+            with: Game(
+                oPlayerName: state.oPlayerName,
+                xPlayerName: state.xPlayerName
+            )
+        )
+    }
 }

@@ -1,6 +1,6 @@
 import AppCore
 import AuthenticationClient
-import ComposableArchitecture
+import VDStore
 import LoginCore
 import NewGameCore
 import TwoFactorCore
@@ -9,7 +9,7 @@ import XCTest
 final class AppCoreTests: XCTestCase {
 	@MainActor
 	func testIntegration() async {
-		let store = TestStore(initialState: TicTacToe.State.login(Login.State())) {
+		let store = TestStore(TicTacToe()) {
 			TicTacToe.body
 		} withDependencies: {
 			$0.authenticationClient.login = { @Sendable _, _ in

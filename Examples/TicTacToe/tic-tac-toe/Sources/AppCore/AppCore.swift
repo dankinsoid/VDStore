@@ -1,39 +1,26 @@
-import ComposableArchitecture
+import VDStore
+import VDFlow
 import LoginCore
 import NewGameCore
+import TwoFactorCore
 
-@Reducer(state: .equatable)
-public enum TicTacToe {
-	case login(Login)
-	case newGame(NewGame)
+@Steps
+public struct TicTacToe: Equatable {
 
-	public static var body: some ReducerOf<Self> {
-		Reduce { state, action in
-			switch action {
-			case .login(.twoFactor(.presented(.twoFactorResponse(.success)))):
-				state = .newGame(NewGame.State())
-				return .none
+    public var login: Login = Login()
+    public var newGame: NewGame = NewGame()
+}
 
-			case let .login(.loginResponse(.success(response))) where !response.twoFactorRequired:
-				state = .newGame(NewGame.State())
-				return .none
+extension Store<TicTacToe>: LogoutButtonDelegate {
 
-			case .login:
-				return .none
+    public func logoutButtonTapped() {
+        state = .login()
+    }
+}
 
-			case .newGame(.logoutButtonTapped):
-				state = .login(Login.State())
-				return .none
+extension Store<TicTacToe>: LoginDelegate {
 
-			case .newGame:
-				return .none
-			}
-		}
-		.ifCaseLet(\.login, action: \.login) {
-			Login()
-		}
-		.ifCaseLet(\.newGame, action: \.newGame) {
-			NewGame()
-		}
-	}
+    public func didSucceedLogin() {
+        state = .newGame()
+    }
 }

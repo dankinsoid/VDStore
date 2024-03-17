@@ -34,8 +34,8 @@ public struct ViewStore<State>: DynamicProperty {
 		projectedValue.binding
 	}
 
-	public init(store: Store<State>) {
-		if store.di.isViewStore {
+    public init(_ store: Store<State>) {
+        if store.di.isViewStore {
 			property = .store(store)
 		} else {
 			property = .stateObject(
@@ -47,7 +47,7 @@ public struct ViewStore<State>: DynamicProperty {
 	}
 
 	public init(wrappedValue state: State) {
-		self.init(store: Store(wrappedValue: state))
+		self.init(Store(wrappedValue: state))
 	}
 
 	@MainActor
@@ -103,11 +103,6 @@ public extension Store {
 		} set: {
 			state = $0
 		}
-	}
-
-	/// SwiftUI environment values. Available in SwiftUI view hierarchy.
-	var env: EnvironmentValues {
-		Environment(\.self).wrappedValue
 	}
 }
 

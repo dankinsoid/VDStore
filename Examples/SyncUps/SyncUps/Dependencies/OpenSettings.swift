@@ -3,10 +3,8 @@ import VDStore
 
 extension StoreDIValues {
 
-	var openSettings: @Sendable () async -> Void {
-		get { self[\.openSettings] ?? Self.openSettings }
-		set { self[\.openSettings] = newValue }
-	}
+    @StoreDIValue
+    var openSettings: @Sendable () async -> Void = Self.openSettings
 
 	private static let openSettings: @Sendable () async -> Void = {
 		await MainActor.run {

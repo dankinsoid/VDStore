@@ -12,7 +12,6 @@ let package = Package(
 		.library(name: "AppSwiftUI", targets: ["AppSwiftUI"]),
 		.library(name: "AppUIKit", targets: ["AppUIKit"]),
 		.library(name: "AuthenticationClient", targets: ["AuthenticationClient"]),
-		.library(name: "AuthenticationClientLive", targets: ["AuthenticationClientLive"]),
 		.library(name: "GameCore", targets: ["GameCore"]),
 		.library(name: "GameSwiftUI", targets: ["GameSwiftUI"]),
 		.library(name: "GameUIKit", targets: ["GameUIKit"]),
@@ -27,8 +26,8 @@ let package = Package(
 		.library(name: "TwoFactorUIKit", targets: ["TwoFactorUIKit"]),
 	],
 	dependencies: [
-		.package(name: "swift-composable-architecture", path: "../../.."),
-		.package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.0.0"),
+		.package(name: "VDStore", path: "../../.."),
+        .package(url: "https://github.com/dankinsoid/VDFlow.git", from: "4.21.0")
 	],
 	targets: [
 		.target(
@@ -37,7 +36,8 @@ let package = Package(
 				"AuthenticationClient",
 				"LoginCore",
 				"NewGameCore",
-				.product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
+				"VDStore",
+                "VDFlow"
 			]
 		),
 		.testTarget(
@@ -63,21 +63,11 @@ let package = Package(
 
 		.target(
 			name: "AuthenticationClient",
-			dependencies: [
-				.product(name: "Dependencies", package: "swift-dependencies"),
-				.product(name: "DependenciesMacros", package: "swift-dependencies"),
-			]
+			dependencies: ["VDStore"]
 		),
-		.target(
-			name: "AuthenticationClientLive",
-			dependencies: ["AuthenticationClient"]
-		),
-
 		.target(
 			name: "GameCore",
-			dependencies: [
-				.product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
-			]
+            dependencies: ["VDStore", "VDFlow"]
 		),
 		.testTarget(
 			name: "GameCoreTests",
@@ -97,7 +87,8 @@ let package = Package(
 			dependencies: [
 				"AuthenticationClient",
 				"TwoFactorCore",
-				.product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
+                "VDStore",
+                "VDFlow"
 			]
 		),
 		.testTarget(
@@ -123,7 +114,8 @@ let package = Package(
 			name: "NewGameCore",
 			dependencies: [
 				"GameCore",
-				.product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
+                "VDStore",
+                "VDFlow"
 			]
 		),
 		.testTarget(
@@ -149,7 +141,8 @@ let package = Package(
 			name: "TwoFactorCore",
 			dependencies: [
 				"AuthenticationClient",
-				.product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
+                "VDStore",
+                "VDFlow"
 			]
 		),
 		.testTarget(

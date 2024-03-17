@@ -319,11 +319,11 @@ public struct Store<State>: Sendable {
 	}
 
 	public nonisolated func withDIValues<T>(operation: () throws -> T) rethrows -> T {
-		try StoreDIValues.$current.withValue(diModifier, operation: operation)
+       try StoreDIValues.$current.withValue(diModifier, operation: operation)
 	}
 
 	public nonisolated func withDIValues<T>(operation: () async throws -> T) async rethrows -> T {
-		try await StoreDIValues.$current.withValue(diModifier, operation: operation)
+        try await StoreDIValues.$current.withValue(diModifier, operation: operation)
 	}
 
 	func forceUpdateIfNeeded() {
