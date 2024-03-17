@@ -10,7 +10,7 @@ public struct NewGame: Equatable {
 
 	@Steps
 	public struct Flow: Equatable {
-		public var game = Game(oPlayerName: "", xPlayerName: "")
+		public var game: Game = Game(oPlayerName: "", xPlayerName: "")
 		public var none
 	}
 

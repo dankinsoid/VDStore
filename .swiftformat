@@ -7,7 +7,7 @@
 --disable sortDeclarations
 --disable blankLinesAtStartOfScope
 --disable opaqueGenericParameters
---redundanttype inferred
+--enable redundanttype
 --header ""
 --enable organizeDeclarations
 --organizetypes markcategories

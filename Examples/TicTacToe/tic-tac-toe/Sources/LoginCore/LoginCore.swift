@@ -19,7 +19,7 @@ public struct Login: Sendable, Equatable {
 
 	@Steps
 	public struct Flow: Equatable, Sendable {
-		public var twoFactor = TwoFactor(token: "")
+		public var twoFactor: TwoFactor = TwoFactor(token: "")
 		public var alert = ""
 		public var none
 	}

@@ -7,8 +7,8 @@ import VDStore
 @Steps
 public struct TicTacToe: Equatable {
 
-	public var login = Login()
-	public var newGame = NewGame()
+	public var login: Login = Login()
+	public var newGame: NewGame = NewGame()
 }
 
 extension Store<TicTacToe>: LogoutButtonDelegate {
