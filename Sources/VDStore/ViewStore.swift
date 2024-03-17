@@ -34,8 +34,8 @@ public struct ViewStore<State>: DynamicProperty {
 		projectedValue.binding
 	}
 
-    public init(_ store: Store<State>) {
-        if store.di.isViewStore {
+	public init(_ store: Store<State>) {
+		if store.di.isViewStore {
 			property = .store(store)
 		} else {
 			property = .stateObject(

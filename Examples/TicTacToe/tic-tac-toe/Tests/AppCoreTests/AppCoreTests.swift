@@ -1,9 +1,9 @@
 import AppCore
 import AuthenticationClient
-import VDStore
 import LoginCore
 import NewGameCore
 import TwoFactorCore
+import VDStore
 import XCTest
 
 final class AppCoreTests: XCTestCase {

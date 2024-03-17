@@ -1,15 +1,15 @@
 import AuthenticationClient
-import VDStore
-import VDFlow
 import SwiftUI
 import TwoFactorCore
+import VDFlow
+import VDStore
 
 public struct TwoFactorView: View {
 
 	@ViewStore public var state: TwoFactor
 
 	public init(store: Store<TwoFactor>) {
-        _state = ViewStore(store)
+		_state = ViewStore(store)
 	}
 
 	public var body: some View {
@@ -17,7 +17,7 @@ public struct TwoFactorView: View {
 			Text(#"To confirm the second factor enter "1234" into the form."#)
 
 			Section {
-                TextField("1234", text: $state.binding.code)
+				TextField("1234", text: $state.binding.code)
 					.keyboardType(.numberPad)
 			}
 
@@ -30,9 +30,9 @@ public struct TwoFactorView: View {
 					UIApplication.shared.sendAction(
 						#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
 					)
-                    Task {
-                        await $state.submitButtonTapped()
-                    }
+					Task {
+						await $state.submitButtonTapped()
+					}
 				}
 				.disabled(state.isSubmitButtonDisabled)
 
@@ -42,9 +42,9 @@ public struct TwoFactorView: View {
 				}
 			}
 		}
-        .alert(state.flow.alert, isPresented: $state.binding.flow.isSelected(.alert)) {
-            Button("Ok") {}
-        }
+		.alert(state.flow.alert, isPresented: $state.binding.flow.isSelected(.alert)) {
+			Button("Ok") {}
+		}
 		.disabled(state.isFormDisabled)
 		.navigationTitle("Confirmation Code")
 	}
@@ -60,14 +60,14 @@ private extension TwoFactor {
 	NavigationStack {
 		TwoFactorView(
 			store: Store(TwoFactor(token: "deadbeef"))
-                .transformDI {
-                    $0.authenticationClient.login = { @Sendable _, _ in
-                        AuthenticationResponse(token: "deadbeef", twoFactorRequired: false)
-                    }
-                    $0.authenticationClient.twoFactor = { @Sendable _, _ in
-                        AuthenticationResponse(token: "deadbeef", twoFactorRequired: false)
-                    }
-                }
+				.transformDI {
+					$0.authenticationClient.login = { @Sendable _, _ in
+						AuthenticationResponse(token: "deadbeef", twoFactorRequired: false)
+					}
+					$0.authenticationClient.twoFactor = { @Sendable _, _ in
+						AuthenticationResponse(token: "deadbeef", twoFactorRequired: false)
+					}
+				}
 		)
 	}
 }

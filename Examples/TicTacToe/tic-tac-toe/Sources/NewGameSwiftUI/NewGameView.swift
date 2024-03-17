@@ -1,13 +1,13 @@
-import VDStore
-import VDFlow
 import GameCore
 import GameSwiftUI
 import NewGameCore
 import SwiftUI
+import VDFlow
+import VDStore
 
 public struct NewGameView: View {
-    
-    @ViewStore var state: NewGame
+
+	@ViewStore var state: NewGame
 
 	public init(store: Store<NewGame>) {
 		_state = ViewStore(store)
@@ -16,7 +16,7 @@ public struct NewGameView: View {
 	public var body: some View {
 		Form {
 			Section {
-                TextField("Blob Sr.", text: $state.binding.xPlayerName)
+				TextField("Blob Sr.", text: $state.binding.xPlayerName)
 					.autocapitalization(.words)
 					.disableAutocorrection(true)
 					.textContentType(.name)
@@ -34,18 +34,18 @@ public struct NewGameView: View {
 			}
 
 			Button("Let's play!") {
-                $state.letsPlayButtonTapped()
+				$state.letsPlayButtonTapped()
 			}
 			.disabled(state.isLetsPlayButtonDisabled)
 		}
 		.navigationTitle("New Game")
-        .navigationBarItems(
-            trailing: Button("Logout") {
-                $state.di.logoutButtonDelegate?.logoutButtonTapped()
-            }
-        )
-        .navigationDestination(isPresented: $state.binding.flow.isSelected(.game)) {
-            GameView(store: $state.flow.game)
+		.navigationBarItems(
+			trailing: Button("Logout") {
+				$state.di.logoutButtonDelegate?.logoutButtonTapped()
+			}
+		)
+		.navigationDestination(isPresented: $state.binding.flow.isSelected(.game)) {
+			GameView(store: $state.flow.game)
 		}
 	}
 }

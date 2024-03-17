@@ -1,8 +1,8 @@
 import AppCore
-import VDStore
 import LoginSwiftUI
 import NewGameSwiftUI
 import SwiftUI
+import VDStore
 
 public struct AppView: View {
 	@ViewStore private var state: TicTacToe
@@ -11,16 +11,16 @@ public struct AppView: View {
 		_state = ViewStore(store)
 	}
 
-    public var body: some View {
-        switch state.selected {
-        case .login:
-            NavigationStack {
-                LoginView(store: $state.login)
-            }
-        case .newGame:
-            NavigationStack {
-                NewGameView(store: $state.newGame)
-            }
-        }
-    }
+	public var body: some View {
+		switch state.selected {
+		case .login:
+			NavigationStack {
+				LoginView(store: $state.login)
+			}
+		case .newGame:
+			NavigationStack {
+				NewGameView(store: $state.newGame)
+			}
+		}
+	}
 }

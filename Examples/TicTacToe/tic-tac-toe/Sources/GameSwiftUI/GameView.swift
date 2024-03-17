@@ -1,7 +1,7 @@
-import VDStore
-import VDFlow
 import GameCore
 import SwiftUI
+import VDFlow
+import VDStore
 
 public struct GameView: View {
 

@@ -1,6 +1,6 @@
-import VDStore
 import GameCore
 import NewGameCore
+import VDStore
 import XCTest
 
 final class NewGameCoreTests: XCTestCase {

@@ -1,12 +1,12 @@
-import VDStore
 import Combine
 import GameUIKit
 import NewGameCore
 import UIKit
+import VDStore
 
 public class NewGameViewController: UIViewController {
 	@Store var state: NewGame
-    private var cancellableBag: Set<AnyCancellable> = []
+	private var cancellableBag: Set<AnyCancellable> = []
 
 	public init(store: Store<NewGame>) {
 		_state = store
@@ -91,41 +91,41 @@ public class NewGameViewController: UIViewController {
 
 		var gameController: GameViewController?
 
-        $state.publisher
-            .removeDuplicates()
-            .sink { [weak self] state in
-                guard let self else { return }
-                playerOTextField.text = state.oPlayerName
-                playerXTextField.text = state.xPlayerName
-                letsPlayButton.isEnabled = state.isLetsPlayButtonEnabled
-                
-                if state.flow.selected == .game,
-                   gameController == nil
-                {
-                    gameController = GameViewController(store: $state.flow.game)
-                    navigationController?.pushViewController(gameController!, animated: true)
-                } else if state.flow.selected != .game, gameController != nil {
-                    navigationController?.popToViewController(self, animated: true)
-                    gameController = nil
-                }
-            }
-        .store(in: &cancellableBag)
+		$state.publisher
+			.removeDuplicates()
+			.sink { [weak self] state in
+				guard let self else { return }
+				playerOTextField.text = state.oPlayerName
+				playerXTextField.text = state.xPlayerName
+				letsPlayButton.isEnabled = state.isLetsPlayButtonEnabled
+
+				if state.flow.selected == .game,
+				   gameController == nil
+				{
+					gameController = GameViewController(store: $state.flow.game)
+					navigationController?.pushViewController(gameController!, animated: true)
+				} else if state.flow.selected != .game, gameController != nil {
+					navigationController?.popToViewController(self, animated: true)
+					gameController = nil
+				}
+			}
+			.store(in: &cancellableBag)
 	}
 
 	@objc private func logoutButtonTapped() {
-        $state.di.logoutButtonDelegate?.logoutButtonTapped()
+		$state.di.logoutButtonDelegate?.logoutButtonTapped()
 	}
 
 	@objc private func playerXTextChanged(sender: UITextField) {
-        state.xPlayerName = sender.text ?? ""
+		state.xPlayerName = sender.text ?? ""
 	}
 
 	@objc private func playerOTextChanged(sender: UITextField) {
-        state.oPlayerName = sender.text ?? ""
+		state.oPlayerName = sender.text ?? ""
 	}
 
 	@objc private func letsPlayTapped() {
-        $state.letsPlayButtonTapped()
+		$state.letsPlayButtonTapped()
 	}
 }
 

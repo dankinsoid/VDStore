@@ -1,11 +1,11 @@
-import VDStore
 import Combine
 import GameCore
 import UIKit
+import VDStore
 
 public final class GameViewController: UIViewController {
 	@Store private var state: Game
-    private var cancellableSet: Set<AnyCancellable> = []
+	private var cancellableSet: Set<AnyCancellable> = []
 
 	public init(store: Store<Game>) {
 		_state = store
@@ -109,21 +109,21 @@ public final class GameViewController: UIViewController {
 				])
 			}
 
-        $state.publisher
-            .removeDuplicates()
-            .sink { state in
-                titleLabel.text = state.title
-                playAgainButton.isHidden = state.isPlayAgainButtonHidden
-                
-                for (rowIdx, row) in state.rows.enumerated() {
-                    for (colIdx, label) in row.enumerated() {
-                        let button = cells[rowIdx][colIdx]
-                        button.setTitle(label, for: .normal)
-                        button.isEnabled = state.isGameEnabled
-                    }
-                }
-            }
-        .store(in: &cancellableSet)
+		$state.publisher
+			.removeDuplicates()
+			.sink { state in
+				titleLabel.text = state.title
+				playAgainButton.isHidden = state.isPlayAgainButtonHidden
+
+				for (rowIdx, row) in state.rows.enumerated() {
+					for (colIdx, label) in row.enumerated() {
+						let button = cells[rowIdx][colIdx]
+						button.setTitle(label, for: .normal)
+						button.isEnabled = state.isGameEnabled
+					}
+				}
+			}
+			.store(in: &cancellableSet)
 	}
 
 	@objc private func gridCell11Tapped() { $state.cellTapped(row: 0, column: 0) }
@@ -137,11 +137,11 @@ public final class GameViewController: UIViewController {
 	@objc private func gridCell33Tapped() { $state.cellTapped(row: 2, column: 2) }
 
 	@objc private func quitButtonTapped() {
-        $state.quitButtonTapped()
+		$state.quitButtonTapped()
 	}
 
 	@objc private func playAgainButtonTapped() {
-        $state.playAgainButtonTapped()
+		$state.playAgainButtonTapped()
 	}
 }
 

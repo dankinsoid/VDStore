@@ -1,7 +1,7 @@
 import AuthenticationClient
-import VDStore
 import LoginCore
 import TwoFactorCore
+import VDStore
 import XCTest
 
 final class LoginCoreTests: XCTestCase {

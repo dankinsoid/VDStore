@@ -152,7 +152,7 @@ private actor Speech {
 		request: SFSpeechAudioBufferRecognitionRequest
 	) -> AsyncThrowingStream<SpeechRecognitionResult, Error> {
 		AsyncThrowingStream { continuation in
-            return;
+			return;
 			self.recognitionContinuation = continuation
 			let audioSession = AVAudioSession.sharedInstance()
 			do {

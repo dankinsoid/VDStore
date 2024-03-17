@@ -1,10 +1,10 @@
 import AuthenticationClient
-import VDStore
-import VDFlow
 import LoginCore
 import SwiftUI
 import TwoFactorCore
 import TwoFactorSwiftUI
+import VDFlow
+import VDStore
 
 public struct LoginView: View {
 
@@ -30,7 +30,7 @@ public struct LoginView: View {
 					.keyboardType(.emailAddress)
 					.textContentType(.emailAddress)
 
-                SecureField("••••••••", text: $state.binding.password)
+				SecureField("••••••••", text: $state.binding.password)
 			}
 
 			Button {
@@ -41,9 +41,9 @@ public struct LoginView: View {
 				_ = UIApplication.shared.sendAction(
 					#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
 				)
-                Task {
-                    await $state.loginButtonTapped()
-                }
+				Task {
+					await $state.loginButtonTapped()
+				}
 			} label: {
 				HStack {
 					Text("Log in")
@@ -56,11 +56,11 @@ public struct LoginView: View {
 			.disabled(state.isLoginButtonDisabled)
 		}
 		.disabled(state.isFormDisabled)
-        .alert(state.flow.alert, isPresented: $state.binding.flow.isSelected(.alert)) {
-            Button("Ok") {}
-        }
-        .navigationDestination(isPresented: $state.binding.flow.isSelected(.twoFactor)) {
-            TwoFactorView(store: $state.flow.twoFactor)
+		.alert(state.flow.alert, isPresented: $state.binding.flow.isSelected(.alert)) {
+			Button("Ok") {}
+		}
+		.navigationDestination(isPresented: $state.binding.flow.isSelected(.twoFactor)) {
+			TwoFactorView(store: $state.flow.twoFactor)
 		}
 		.navigationTitle("Login")
 	}
@@ -75,7 +75,7 @@ private extension Login {
 #Preview {
 	NavigationStack {
 		LoginView(
-            store: Store(Login()).transformDI {
+			store: Store(Login()).transformDI {
 				$0.authenticationClient.login = { @Sendable _, _ in
 					AuthenticationResponse(token: "deadbeef", twoFactorRequired: false)
 				}

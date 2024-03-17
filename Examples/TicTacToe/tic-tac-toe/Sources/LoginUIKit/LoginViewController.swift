@@ -1,13 +1,13 @@
-import VDStore
-import VDFlow
 import Combine
 import LoginCore
 import TwoFactorUIKit
 import UIKit
+import VDFlow
+import VDStore
 
 public class LoginViewController: UIViewController {
 	public let store: Store<Login>
-    private var cancellableSet: Set<AnyCancellable> = []
+	private var cancellableSet: Set<AnyCancellable> = []
 
 	public init(store: Store<Login>) {
 		self.store = store
@@ -92,46 +92,46 @@ public class LoginViewController: UIViewController {
 		var alertController: UIAlertController?
 		var twoFactorController: TwoFactorViewController?
 
-        store.publisher
-            .removeDuplicates()
-            .sink { [weak self] state in
-                guard let self else { return }
-                if state.email != emailTextField.text {
-                    emailTextField.text = state.email
-                }
-                emailTextField.isEnabled = state.isEmailTextFieldEnabled
-                if passwordTextField.text != state.password {
-                    passwordTextField.text = state.password
-                }
-                passwordTextField.isEnabled = state.isPasswordTextFieldEnabled
-                loginButton.isEnabled = state.isLoginButtonEnabled
-                activityIndicator.isHidden = state.isActivityIndicatorHidden
-                
-                if store.state.flow.selected == .alert,
-                   alertController == nil
-                {
-                    alertController = UIAlertController(title: store.state.flow.alert, message: nil, preferredStyle: .alert)
-                    alertController?.addAction(UIAlertAction(title: "Ok", style: .default, handler: nil))
-                    present(alertController!, animated: true, completion: nil)
-                } else if store.state.flow.selected != .alert, alertController != nil {
-                    alertController?.dismiss(animated: true)
-                    alertController = nil
-                }
-                
-                if store.state.flow.selected == .twoFactor,
-                   twoFactorController == nil
-                {
-                    twoFactorController = TwoFactorViewController(store: store.flow.twoFactor)
-                    navigationController?.pushViewController(
-                        twoFactorController!,
-                        animated: true
-                    )
-                } else if store.state.flow.selected != .twoFactor, twoFactorController != nil {
-                    navigationController?.popToViewController(self, animated: true)
-                    twoFactorController = nil
-                }
-            }
-            .store(in: &cancellableSet)
+		store.publisher
+			.removeDuplicates()
+			.sink { [weak self] state in
+				guard let self else { return }
+				if state.email != emailTextField.text {
+					emailTextField.text = state.email
+				}
+				emailTextField.isEnabled = state.isEmailTextFieldEnabled
+				if passwordTextField.text != state.password {
+					passwordTextField.text = state.password
+				}
+				passwordTextField.isEnabled = state.isPasswordTextFieldEnabled
+				loginButton.isEnabled = state.isLoginButtonEnabled
+				activityIndicator.isHidden = state.isActivityIndicatorHidden
+
+				if store.state.flow.selected == .alert,
+				   alertController == nil
+				{
+					alertController = UIAlertController(title: store.state.flow.alert, message: nil, preferredStyle: .alert)
+					alertController?.addAction(UIAlertAction(title: "Ok", style: .default, handler: nil))
+					present(alertController!, animated: true, completion: nil)
+				} else if store.state.flow.selected != .alert, alertController != nil {
+					alertController?.dismiss(animated: true)
+					alertController = nil
+				}
+
+				if store.state.flow.selected == .twoFactor,
+				   twoFactorController == nil
+				{
+					twoFactorController = TwoFactorViewController(store: store.flow.twoFactor)
+					navigationController?.pushViewController(
+						twoFactorController!,
+						animated: true
+					)
+				} else if store.state.flow.selected != .twoFactor, twoFactorController != nil {
+					navigationController?.popToViewController(self, animated: true)
+					twoFactorController = nil
+				}
+			}
+			.store(in: &cancellableSet)
 	}
 
 	override public func viewDidAppear(_ animated: Bool) {
@@ -143,17 +143,17 @@ public class LoginViewController: UIViewController {
 	}
 
 	@objc private func loginButtonTapped(sender: UIButton) {
-        Task {
-            await store.loginButtonTapped()
-        }
+		Task {
+			await store.loginButtonTapped()
+		}
 	}
 
 	@objc private func emailTextFieldChanged(sender: UITextField) {
-        store.state.email = sender.text ?? ""
+		store.state.email = sender.text ?? ""
 	}
 
 	@objc private func passwordTextFieldChanged(sender: UITextField) {
-        store.state.password = sender.text ?? ""
+		store.state.password = sender.text ?? ""
 	}
 }
 
@@ -167,6 +167,5 @@ private extension Login {
 @Actions
 private extension Store<Login> {
 
-	func twoFactorDismissed() {
-	}
+	func twoFactorDismissed() {}
 }

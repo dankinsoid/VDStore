@@ -1,10 +1,10 @@
 import AppCore
-import VDStore
 import Combine
 import LoginUIKit
 import NewGameUIKit
 import SwiftUI
 import UIKit
+import VDStore
 
 public struct UIKitAppView: UIViewControllerRepresentable {
 	@Store private var state: TicTacToe
@@ -26,11 +26,11 @@ public struct UIKitAppView: UIViewControllerRepresentable {
 }
 
 class AppViewController: UINavigationController {
-    @Store private var state: TicTacToe
-    private var cancellableSet: Set<AnyCancellable> = []
+	@Store private var state: TicTacToe
+	private var cancellableSet: Set<AnyCancellable> = []
 
 	init(store: Store<TicTacToe>) {
-        _state = store
+		_state = store
 		super.init(nibName: nil, bundle: nil)
 	}
 
@@ -42,18 +42,18 @@ class AppViewController: UINavigationController {
 	override func viewDidLoad() {
 		super.viewDidLoad()
 
-        $state.publisher
-            .map(\.selected)
-            .removeDuplicates()
-            .sink { [weak self] selected in
-                guard let self else { return }
-                switch selected {
-                case .login:
-                    setViewControllers([LoginViewController(store: $state.login)], animated: false)
-                case .newGame:
-                    setViewControllers([NewGameViewController(store: $state.newGame)], animated: false)
-                }
-            }
-            .store(in: &cancellableSet)
+		$state.publisher
+			.map(\.selected)
+			.removeDuplicates()
+			.sink { [weak self] selected in
+				guard let self else { return }
+				switch selected {
+				case .login:
+					setViewControllers([LoginViewController(store: $state.login)], animated: false)
+				case .newGame:
+					setViewControllers([NewGameViewController(store: $state.newGame)], animated: false)
+				}
+			}
+			.store(in: &cancellableSet)
 	}
 }

@@ -1,5 +1,5 @@
-import VDStore
 import GameCore
+import VDStore
 import XCTest
 
 final class GameCoreTests: XCTestCase {

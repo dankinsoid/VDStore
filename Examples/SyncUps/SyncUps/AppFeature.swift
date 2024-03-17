@@ -51,7 +51,7 @@ extension Store<AppFeature>: RecordMeetingDelegate {
 
 	func debounceSave(syncUps: [SyncUp]) async throws {
 		cancel(Self.debounceSave)
-        try await di.continuousClock.sleep(for: .seconds(1))
+		try await di.continuousClock.sleep(for: .seconds(1))
 		try await di.dataManager.save(JSONEncoder().encode(syncUps), .syncUps)
 	}
 }
@@ -81,8 +81,8 @@ struct AppView: View {
 
 	var body: some View {
 		NavigationSteps(
-            selection: $state.binding.path.selected
-        ) {
+			selection: $state.binding.path.selected
+		) {
 			listView
 			detailView
 
@@ -93,7 +93,7 @@ struct AppView: View {
 				meetingView
 			}
 		}
-        .stepEnvironment($state.binding.path)
+		.stepEnvironment($state.binding.path)
 	}
 
 	private var listView: some View {

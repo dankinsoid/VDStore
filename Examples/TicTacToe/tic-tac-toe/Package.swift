@@ -27,7 +27,7 @@ let package = Package(
 	],
 	dependencies: [
 		.package(name: "VDStore", path: "../../.."),
-        .package(url: "https://github.com/dankinsoid/VDFlow.git", from: "4.21.0")
+		.package(url: "https://github.com/dankinsoid/VDFlow.git", from: "4.21.0"),
 	],
 	targets: [
 		.target(
@@ -37,7 +37,7 @@ let package = Package(
 				"LoginCore",
 				"NewGameCore",
 				"VDStore",
-                "VDFlow"
+				"VDFlow",
 			]
 		),
 		.testTarget(
@@ -67,7 +67,7 @@ let package = Package(
 		),
 		.target(
 			name: "GameCore",
-            dependencies: ["VDStore", "VDFlow"]
+			dependencies: ["VDStore", "VDFlow"]
 		),
 		.testTarget(
 			name: "GameCoreTests",
@@ -87,8 +87,8 @@ let package = Package(
 			dependencies: [
 				"AuthenticationClient",
 				"TwoFactorCore",
-                "VDStore",
-                "VDFlow"
+				"VDStore",
+				"VDFlow",
 			]
 		),
 		.testTarget(
@@ -114,8 +114,8 @@ let package = Package(
 			name: "NewGameCore",
 			dependencies: [
 				"GameCore",
-                "VDStore",
-                "VDFlow"
+				"VDStore",
+				"VDFlow",
 			]
 		),
 		.testTarget(
@@ -141,8 +141,8 @@ let package = Package(
 			name: "TwoFactorCore",
 			dependencies: [
 				"AuthenticationClient",
-                "VDStore",
-                "VDFlow"
+				"VDStore",
+				"VDFlow",
 			]
 		),
 		.testTarget(

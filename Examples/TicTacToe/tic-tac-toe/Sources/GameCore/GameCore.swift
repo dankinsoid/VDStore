@@ -1,50 +1,50 @@
-import VDStore
-import VDFlow
 import SwiftUI
+import VDFlow
+import VDStore
 
 public struct Game: Sendable, Equatable {
-    
-    public var board: Three<Three<Player?>> = .empty
-    public var currentPlayer: Player = .x
-    public let oPlayerName: String
-    public let xPlayerName: String
-    
-    public init(oPlayerName: String, xPlayerName: String) {
-        self.oPlayerName = oPlayerName
-        self.xPlayerName = xPlayerName
-    }
-    
-    public var currentPlayerName: String {
-        switch currentPlayer {
-        case .o: return oPlayerName
-        case .x: return xPlayerName
-        }
-    }
+
+	public var board: Three<Three<Player?>> = .empty
+	public var currentPlayer: Player = .x
+	public let oPlayerName: String
+	public let xPlayerName: String
+
+	public init(oPlayerName: String, xPlayerName: String) {
+		self.oPlayerName = oPlayerName
+		self.xPlayerName = xPlayerName
+	}
+
+	public var currentPlayerName: String {
+		switch currentPlayer {
+		case .o: return oPlayerName
+		case .x: return xPlayerName
+		}
+	}
 }
 
 @Actions
-extension Store<Game> {
-    
-    public func cellTapped(row: Int, column: Int) {
-        guard
-            state.board[row][column] == nil,
-            !state.board.hasWinner
-        else { return }
-        
-        state.board[row][column] = state.currentPlayer
-        
-        if !state.board.hasWinner {
-            state.currentPlayer.toggle()
-        }
-    }
-    
-    public func playAgainButtonTapped() {
-        state = Game(oPlayerName: state.oPlayerName, xPlayerName: state.xPlayerName)
-    }
-    
-    public func quitButtonTapped() {
-        di.dismiss()
-    }
+public extension Store<Game> {
+
+	func cellTapped(row: Int, column: Int) {
+		guard
+			state.board[row][column] == nil,
+			!state.board.hasWinner
+		else { return }
+
+		state.board[row][column] = state.currentPlayer
+
+		if !state.board.hasWinner {
+			state.currentPlayer.toggle()
+		}
+	}
+
+	func playAgainButtonTapped() {
+		state = Game(oPlayerName: state.oPlayerName, xPlayerName: state.xPlayerName)
+	}
+
+	func quitButtonTapped() {
+		di.dismiss()
+	}
 }
 
 public enum Player: Equatable, Sendable {
