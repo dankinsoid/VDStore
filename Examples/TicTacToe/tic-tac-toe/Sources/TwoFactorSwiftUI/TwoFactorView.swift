@@ -17,7 +17,7 @@ public struct TwoFactorView: View {
 			Text(#"To confirm the second factor enter "1234" into the form."#)
 
 			Section {
-				TextField("1234", text: $state.binding.code)
+				TextField("1234", text: _state.code)
 					.keyboardType(.numberPad)
 			}
 
@@ -42,7 +42,7 @@ public struct TwoFactorView: View {
 				}
 			}
 		}
-		.alert(state.flow.alert, isPresented: $state.binding.flow.isSelected(.alert)) {
+		.alert(state.flow.alert, isPresented: _state.flow.isSelected(.alert)) {
 			Button("Ok") {}
 		}
 		.disabled(state.isFormDisabled)

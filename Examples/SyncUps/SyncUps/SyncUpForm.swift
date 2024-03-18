@@ -1,5 +1,6 @@
 import SwiftUI
 import VDStore
+import VDFlow
 
 struct SyncUpForm: Equatable {
 
@@ -46,38 +47,35 @@ extension Store<SyncUpForm> {
 struct SyncUpFormView: View {
 
 	@ViewStore var state: SyncUpForm
-	@FocusState var focus: SyncUpForm.Field?
 
-	init(state: SyncUpForm, focus: SyncUpForm.Field? = nil) {
+	init(state: SyncUpForm) {
 		_state = ViewStore(wrappedValue: state)
-		self.focus = focus
 	}
 
-	init(store: Store<SyncUpForm>, focus: SyncUpForm.Field? = nil) {
+	init(store: Store<SyncUpForm>) {
 		_state = ViewStore(store)
-		self.focus = focus
 	}
 
 	var body: some View {
 		Form {
 			Section {
-				TextField("Title", text: $state.binding.syncUp.title)
-					.focused($focus, equals: .title)
+				TextField("Title", text: _state.syncUp.title)
+                    .focused(_state.focus, equals: .title)
 				HStack {
-					Slider(value: $state.binding.syncUp.duration.minutes, in: 5 ... 30, step: 1) {
+					Slider(value: _state.syncUp.duration.minutes, in: 5 ... 30, step: 1) {
 						Text("Length")
 					}
 					Spacer()
 					Text(state.syncUp.duration.formatted(.units()))
 				}
-				ThemePicker(selection: $state.binding.syncUp.theme)
+				ThemePicker(selection: _state.syncUp.theme)
 			} header: {
 				Text("Sync-up Info")
 			}
 			Section {
-				ForEach($state.binding.syncUp.attendees) { attendee in
+				ForEach(_state.syncUp.attendees) { attendee in
 					TextField("Name", text: attendee.name)
-						.focused($focus, equals: .attendee(attendee.id))
+                        .focused(_state.focus, equals: .attendee(attendee.id))
 				}
 				.onDelete { indices in
 					$state.deleteAttendees(atOffsets: indices)
@@ -90,7 +88,6 @@ struct SyncUpFormView: View {
 				Text("Attendees")
 			}
 		}
-		//        .bind($state.binding.focus, to: $focus)
 	}
 }
 

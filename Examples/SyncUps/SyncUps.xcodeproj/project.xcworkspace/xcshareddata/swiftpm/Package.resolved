@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/dankinsoid/VDFlow",
       "state" : {
-        "revision" : "c56440956274448d9a7efaa77e3f03b1d3104464",
-        "version" : "4.26.0"
+        "revision" : "564d551966b13d87cd5d757fd8d22ecc3d2fe866",
+        "version" : "4.27.0"
       }
     }
   ],

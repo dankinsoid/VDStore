@@ -1,4 +1,5 @@
-import SwiftUI
+#if canImport(UIKit)
+import UIKit
 
 public extension StoreDIValues {
 
@@ -58,3 +59,4 @@ private extension [UIViewController] {
 		return nil
 	}
 }
+#endif

@@ -181,7 +181,7 @@ struct SyncUpDetailView: View {
 		.speechRecognitionDeniedAlert(store: $state)
 		.speechRecognitionRestrictedAlert(store: $state)
 		.sheet(
-			isPresented: $state.binding.destination.isSelected(.edit)
+			isPresented: _state.destination.isSelected(.edit)
 		) {
 			NavigationStack {
 				SyncUpFormView(store: $state.destination.edit)

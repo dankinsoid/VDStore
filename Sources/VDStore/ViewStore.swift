@@ -9,17 +9,22 @@ import SwiftUI
 @available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
 @MainActor
 @propertyWrapper
+@dynamicMemberLookup
 public struct ViewStore<State>: DynamicProperty {
 
 	private let property: Property
 	@Environment(\.storeDIValues) private var transformDI
 
 	public var wrappedValue: State {
-		get { projectedValue.state }
-		nonmutating set { projectedValue.state = newValue }
+		get { store.state }
+		nonmutating set { store.state = newValue }
 	}
 
-	public var projectedValue: Store<State> {
+    public var projectedValue: Store<State> {
+        store
+    }
+
+    public var store: Store<State> {
 		let result: Store<State>
 		switch property {
 		case let .stateObject(observable):
@@ -55,6 +60,12 @@ public struct ViewStore<State>: DynamicProperty {
 	public init(wrappedValue state: State) {
 		self.init(Store(wrappedValue: state))
 	}
+
+    public subscript<LocalValue>(
+        dynamicMember keyPath: WritableKeyPath<State, LocalValue>
+    ) -> Binding<LocalValue> {
+        store.binding[dynamicMember: keyPath]
+    }
 
 	@MainActor
 	private enum Property: DynamicProperty {

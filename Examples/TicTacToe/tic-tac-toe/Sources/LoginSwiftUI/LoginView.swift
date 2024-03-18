@@ -25,12 +25,12 @@ public struct LoginView: View {
 			)
 
 			Section {
-				TextField("blob@pointfree.co", text: $state.binding.email)
+				TextField("blob@pointfree.co", text: _state.email)
 					.autocapitalization(.none)
 					.keyboardType(.emailAddress)
 					.textContentType(.emailAddress)
 
-				SecureField("••••••••", text: $state.binding.password)
+				SecureField("••••••••", text: _state.password)
 			}
 
 			Button {
@@ -56,10 +56,10 @@ public struct LoginView: View {
 			.disabled(!state.isFormValid)
 		}
 		.disabled(state.isLoginRequestInFlight)
-		.alert(state.flow.alert, isPresented: $state.binding.flow.isSelected(.alert)) {
+		.alert(state.flow.alert, isPresented: _state.flow.isSelected(.alert)) {
 			Button("Ok") {}
 		}
-		.navigationDestination(isPresented: $state.binding.flow.isSelected(.twoFactor)) {
+		.navigationDestination(isPresented: _state.flow.isSelected(.twoFactor)) {
 			TwoFactorView(store: $state.flow.twoFactor)
 		}
 		.navigationTitle("Login")

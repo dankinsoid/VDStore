@@ -20,10 +20,10 @@ public struct AppView: View {
 				LoginView(store: $state.login)
 			}
 		case .newGame:
-			NavigationSteps(selection: $state.binding.newGame.flow.selected) {
+			NavigationSteps(selection: _state.newGame.flow.selected) {
 				NewGameView(store: $state.newGame)
 				GameView(store: $state.newGame.flow.game)
-					.step($state.binding.newGame.flow.$game)
+					.step(_state.newGame.flow.$game)
 			}
 		}
 	}

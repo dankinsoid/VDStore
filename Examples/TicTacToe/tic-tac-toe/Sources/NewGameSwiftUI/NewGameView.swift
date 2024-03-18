@@ -16,7 +16,7 @@ public struct NewGameView: View {
 	public var body: some View {
 		Form {
 			Section {
-				TextField("Blob Sr.", text: $state.binding.xPlayerName)
+				TextField("Blob Sr.", text: _state.xPlayerName)
 					.autocapitalization(.words)
 					.disableAutocorrection(true)
 					.textContentType(.name)
@@ -25,7 +25,7 @@ public struct NewGameView: View {
 			}
 
 			Section {
-				TextField("Blob Jr.", text: $state.binding.oPlayerName)
+				TextField("Blob Jr.", text: _state.oPlayerName)
 					.autocapitalization(.words)
 					.disableAutocorrection(true)
 					.textContentType(.name)

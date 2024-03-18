@@ -106,7 +106,7 @@ struct SyncUpsListView: View {
 		.navigationTitle("Daily Sync-ups")
 		.syncUpsListAlert($state)
 		.sheet(
-			isPresented: $state.binding.destination.isSelected(.add)
+			isPresented: _state.destination.isSelected(.add)
 		) {
 			NavigationStack {
 				SyncUpFormView(store: $state.destination.add)

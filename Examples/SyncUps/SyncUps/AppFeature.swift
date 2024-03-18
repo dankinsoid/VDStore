@@ -81,7 +81,7 @@ struct AppView: View {
 
 	var body: some View {
 		NavigationSteps(
-			selection: $state.binding.path.selected
+			selection: _state.path.selected
 		) {
 			listView
 			detailView
@@ -93,12 +93,12 @@ struct AppView: View {
 				meetingView
 			}
 		}
-		.stepEnvironment($state.binding.path)
+		.stepEnvironment(_state.path)
 	}
 
 	private var listView: some View {
 		SyncUpsListView(store: $state.syncUpsList)
-			.step($state.binding.path.$list)
+			.step(_state.path.$list)
 	}
 
 	private var detailView: some View {
@@ -106,7 +106,7 @@ struct AppView: View {
 			store: $state.path.detail
 				.di(\.syncUpDetailDelegate, $state)
 		)
-		.step($state.binding.path.$detail)
+		.step(_state.path.$detail)
 	}
 
 	private var meetingView: some View {
@@ -114,7 +114,7 @@ struct AppView: View {
 			meeting: state.path.meeting.meeting,
 			syncUp: state.path.meeting.syncUp
 		)
-		.step($state.binding.path.$meeting)
+		.step(_state.path.$meeting)
 	}
 
 	private var recordView: some View {
@@ -122,7 +122,7 @@ struct AppView: View {
 			store: $state.path.record
 				.di(\.recordMeetingDelegate, $state)
 		)
-		.step($state.binding.path.$record)
+		.step(_state.path.$record)
 	}
 }
 
