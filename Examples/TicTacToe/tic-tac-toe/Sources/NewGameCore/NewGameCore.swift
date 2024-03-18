@@ -10,7 +10,7 @@ public struct NewGame: Equatable {
 
 	@Steps
 	public struct Flow: Equatable {
-		public var game: Game = Game(oPlayerName: "", xPlayerName: "")
+		public var game: Game = .init(oPlayerName: "", xPlayerName: "")
 		public var none
 	}
 
@@ -23,8 +23,7 @@ public protocol LogoutButtonDelegate {
 }
 
 public extension StoreDIValues {
-	@StoreDIValue
-	var logoutButtonDelegate: LogoutButtonDelegate?
+	@StoreDIValue var logoutButtonDelegate: LogoutButtonDelegate?
 }
 
 @Actions

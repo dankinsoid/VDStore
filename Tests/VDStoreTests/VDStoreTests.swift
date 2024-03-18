@@ -125,7 +125,13 @@ final class VDStoreTests: XCTestCase {
 
 	func testTasksMacroCancel() async {
 		let store = Store(Counter())
-		let value = await store.asyncTask()
+		let value = await store.cancellableTask()
+		XCTAssertEqual(value, 6)
+	}
+
+	func testTaskMacroCancelInFlight() async {
+		let store = Store(Counter())
+		let value = await store.cancellableInFlightTask()
 		XCTAssertEqual(value, 6)
 	}
 
@@ -307,11 +313,23 @@ extension Store<Counter> {
 @Actions
 extension Store<Counter> {
 
-	func asyncTask() async -> Int {
+	func cancellableTask() async -> Int {
 		for i in 0 ..< 10 {
 			guard !Task.isCancelled else { return i }
 			if i == 5 {
-				cancel(Self.asyncTask)
+				cancel(Self.cancellableTask)
+			}
+		}
+		return 10
+	}
+
+	@CancelInFlight
+	func cancellableInFlightTask(ignore: Bool = false) async -> Int {
+		guard !ignore else { return -1 }
+		for i in 0 ..< 10 {
+			guard !Task.isCancelled else { return i }
+			if i == 5 {
+				_ = await cancellableInFlightTask(ignore: true)
 			}
 		}
 		return 10
@@ -327,7 +345,7 @@ class MockSomeService: SomeService {}
 extension StoreDIValues {
 
 	var someService: SomeService {
-		get { self[\.someService] ?? MockSomeService() }
-		set { self[\.someService] = newValue }
+		get { get(\.someService, or: MockSomeService()) }
+		set { set(\.someService, newValue) }
 	}
 }

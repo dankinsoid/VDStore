@@ -16,6 +16,10 @@ extension SyntaxCollection {
 
 extension FunctionDeclSyntax {
 
+	func containsAttribute(_ attribute: String) -> Bool {
+		attributes.contains(where: { $0.as(AttributeSyntax.self)?.attributeName.description == attribute })
+	}
+
 	mutating func remove(attribute: String) {
 		if let i = attributes.firstIndex(where: { $0.as(AttributeSyntax.self)?.attributeName.description == attribute }) {
 			attributes.remove(at: i)

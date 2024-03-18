@@ -1,38 +1,37 @@
-import ComposableArchitecture
 import SwiftUI
+import VDStore
 
-@Reducer
-struct Todo {
-	@ObservableState
-	struct State: Equatable, Identifiable {
-		var description = ""
-		let id: UUID
-		var isComplete = false
-	}
+struct Todo: Equatable, Identifiable {
 
-	enum Action: BindableAction, Sendable {
-		case binding(BindingAction<State>)
-	}
+	var description = ""
+	let id: UUID
+	var isComplete = false
 
-	var body: some Reducer<State, Action> {
-		BindingReducer()
-	}
+	static let mock = Todo(
+		description: "Call Mom",
+		id: UUID(),
+		isComplete: true
+	)
 }
 
 struct TodoView: View {
-	@Bindable var store: StoreOf<Todo>
+	@ViewStore var state: Todo
+
+	init(store: Store<Todo>) {
+		_state = ViewStore(store)
+	}
 
 	var body: some View {
 		HStack {
 			Button {
-				store.isComplete.toggle()
+				state.isComplete.toggle()
 			} label: {
-				Image(systemName: store.isComplete ? "checkmark.square" : "square")
+				Image(systemName: state.isComplete ? "checkmark.square" : "square")
 			}
 			.buttonStyle(.plain)
 
-			TextField("Untitled Todo", text: $store.description)
+			TextField("Untitled Todo", text: $state.binding.description)
 		}
-		.foregroundColor(store.isComplete ? .gray : nil)
+		.foregroundColor(state.isComplete ? .gray : nil)
 	}
 }

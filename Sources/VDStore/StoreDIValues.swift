@@ -3,8 +3,7 @@ import Foundation
 /// The storage of injected dependencies.
 public struct StoreDIValues {
 
-	@TaskLocal
-	public static var current = StoreDIValues()
+	@TaskLocal public static var current = StoreDIValues()
 
 	typealias Key = PartialKeyPath<StoreDIValues>
 

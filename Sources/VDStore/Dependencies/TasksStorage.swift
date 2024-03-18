@@ -10,13 +10,13 @@ public extension StoreDIValues {
 }
 
 /// The storage of async tasks. Allows to store and cancel tasks.
-@MainActor
 public final class TasksStorage {
 
 	/// The shared instance of the storage.
 	public static let shared = TasksStorage()
+	private let lock = NSRecursiveLock()
 
-	private var tasks: [AnyHashable: CancellableTask] = [:]
+	private var tasks: [AnyHashable: [UUID: CancellableTask]] = [:]
 
 	var count: Int { tasks.count }
 
@@ -24,25 +24,39 @@ public final class TasksStorage {
 
 	/// Cancel a task by its cancellation id.
 	public func cancel(id: AnyHashable) {
-		tasks[id]?.cancel()
-		remove(id: id)
-	}
-
-	fileprivate func add<T, E: Error>(for id: AnyHashable, _ task: Task<T, E>) {
-		cancel(id: id)
-		var isFinished = false
-		Task { [weak self] in
-			_ = try? await task.value
-			self?.remove(id: id)
-			isFinished = true
-		}
-		if !isFinished {
-			tasks[id] = task
-		}
-	}
-
-	private func remove(id: AnyHashable) {
+		lock.lock()
+		tasks[id]?.forEach { $0.value.cancel() }
 		tasks[id] = nil
+		lock.unlock()
+	}
+
+	fileprivate func add<T, E: Error>(for id: AnyHashable, _ task: Task<T, E>, cancelInFlight: Bool) {
+		if cancelInFlight {
+			cancel(id: id)
+		}
+		let uuid = UUID()
+		Task { [self] in
+			addTask(task, id: id, uuid: uuid)
+			defer {
+				remove(id: id, uuid: uuid)
+			}
+			_ = try await task.value
+		}
+	}
+
+	private func addTask<T, E: Error>(_ task: Task<T, E>, id: AnyHashable, uuid: UUID) {
+		lock.lock()
+		tasks[id, default: [:]][uuid] = task
+		lock.unlock()
+	}
+
+	private func remove(id: AnyHashable, uuid: UUID) {
+		lock.lock()
+		tasks[id]?[uuid] = nil
+		if tasks[id]?.isEmpty == true {
+			tasks[id] = nil
+		}
+		lock.unlock()
 	}
 }
 
@@ -56,24 +70,38 @@ extension Task: CancellableTask {}
 public extension Store {
 
 	/// Create a throwing task with cancellation id.
+	/// - Parameters:
+	///   - id: The task's identifier.
+	///   - cancelInFlight: Determines if any in-flight tasks with the same identifier should be
+	///     canceled before starting this new one.
+	///   - task: The async throwing task.
 	@discardableResult
 	func task<T>(
 		id: AnyHashable,
-		_ task: @escaping @Sendable () async throws -> T
+		cancelInFlight: Bool = false,
+		_ task: @MainActor @escaping @Sendable () async throws -> T
 	) -> Task<T, Error> {
-		Task {
-			try await withDIValues(operation: task)
+		withDIValues {
+			Task(operation: task)
+				.store(in: di.tasksStorage, id: id, cancelInFlight: cancelInFlight)
 		}
-		.store(in: di.tasksStorage, id: id)
 	}
 
 	/// Create a task with cancellation id.
+	/// - Parameters:
+	///   - id: The task's identifier.
+	///   - cancelInFlight: Determines if any in-flight tasks with the same identifier should be canceled before starting this new one.
+	///   - task: The async task.
 	@discardableResult
 	func task<T>(
 		id: AnyHashable,
-		_ task: @escaping @Sendable () async -> T
+		cancelInFlight: Bool = false,
+		_ task: @MainActor @escaping @Sendable () async -> T
 	) -> Task<T, Never> {
-		Task(operation: task).store(in: di.tasksStorage, id: id)
+		withDIValues {
+			Task(operation: task)
+				.store(in: di.tasksStorage, id: id, cancelInFlight: cancelInFlight)
+		}
 	}
 
 	/// Cancel an async store action.
@@ -97,10 +125,14 @@ public extension Store {
 public extension Task {
 
 	/// Store the task in the storage by it cancellation id.
+	/// - Parameters:
+	///   - id: The task's identifier.
+	///   - cancelInFlight: Determines if any in-flight tasks with the same identifier should be
+	///     canceled before starting this new one.
 	@MainActor
 	@discardableResult
-	func store(in storage: TasksStorage, id: AnyHashable) -> Task {
-		storage.add(for: id, self)
+	func store(in storage: TasksStorage, id: AnyHashable, cancelInFlight: Bool = false) -> Task {
+		storage.add(for: id, self, cancelInFlight: cancelInFlight)
 		return self
 	}
 }

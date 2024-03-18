@@ -60,10 +60,11 @@ public extension Store.Action {
 
 	init<T>(
 		id: StoreActionID,
+		cancelInFlight: Bool = false,
 		action: @escaping @Sendable (Store<State>) -> @MainActor (Args) async -> T
 	) where Res == Task<T, Never> {
 		self.init(id: id) { store, args in
-			store.task(id: id) {
+			store.task(id: id, cancelInFlight: cancelInFlight) {
 				await action(store)(args)
 			}
 		}
@@ -71,10 +72,11 @@ public extension Store.Action {
 
 	init<T>(
 		id: StoreActionID,
+		cancelInFlight: Bool = false,
 		action: @escaping @Sendable (Store<State>) -> @MainActor (Args) async throws -> T
 	) where Res == Task<T, Error> {
 		self.init(id: id) { store, args in
-			store.task(id: id) {
+			store.task(id: id, cancelInFlight: cancelInFlight) {
 				try await action(store)(args)
 			}
 		}
@@ -254,11 +256,13 @@ public extension Store {
 		file: String = #fileID,
 		line: UInt = #line,
 		from function: String = #function,
+		cancelInFlight: Bool = false,
 		action: @MainActor @escaping () async throws -> Res
 	) async throws -> Res {
 		try await execute(
 			Action<Void, Task<Res, Error>>(
 				id: id ?? StoreActionID(name: "anonymous", fileID: file, line: line),
+				cancelInFlight: cancelInFlight,
 				action: { _ in
 					{ _ in try await action() }
 				}
@@ -276,11 +280,13 @@ public extension Store {
 		file: String = #fileID,
 		line: UInt = #line,
 		from function: String = #function,
+		cancelInFlight: Bool = false,
 		action: @MainActor @escaping () async -> Res
 	) async -> Res {
 		await execute(
 			Action<Void, Task<Res, Never>>(
 				id: id ?? StoreActionID(name: "anonymous", fileID: file, line: line),
+				cancelInFlight: cancelInFlight,
 				action: { _ in
 					{ _ in await action() }
 				}

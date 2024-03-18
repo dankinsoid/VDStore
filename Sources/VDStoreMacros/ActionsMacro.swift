@@ -45,7 +45,7 @@ public struct ActionsMacro: MemberAttributeMacro, MemberMacro {
 	}
 }
 
-public struct ActionMacro: PeerMacro {
+public struct CancelInFlightMacro: PeerMacro {
 
 	public static func expansion(
 		of node: AttributeSyntax,
@@ -53,9 +53,12 @@ public struct ActionMacro: PeerMacro {
 		in context: some MacroExpansionContext
 	) throws -> [DeclSyntax] {
 		guard let funcDecl = declaration.as(FunctionDeclSyntax.self) else {
-			throw CustomError("@Action only works on functions")
+			throw CustomError("@CancelInFlight only works on functions")
 		}
-		return try VDStoreMacros.expansion(of: node, funcDecl: funcDecl, in: context)
+		guard funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil else {
+			throw CustomError("@CancelInFlight only works on async functions")
+		}
+		return []
 	}
 }
 
@@ -116,21 +119,24 @@ private func expansion(
 	default: break
 	}
 
+	let cancelInFlight = isAsync && funcDecl.containsAttribute("CancelInFlight")
 	let lineNumber = context.location(of: funcDecl)?.line.description ?? "#line"
-	let staticVarDecl = try VariableDeclSyntax("""
-	static var \(raw: funcDecl.name.text): \(raw: varType) {
-	    Action(
-	        id: StoreActionID(name: "\(raw: funcDecl.name.text)", fileID: #fileID, line: \(raw: lineNumber)),
-	        action: \(raw: actionBody)
-	    )
-	}
-	""")
+	let staticVarDecl = try VariableDeclSyntax(
+		"""
+		static var \(raw: funcDecl.name.text): \(raw: varType) {
+		    Action(
+		        id: StoreActionID(name: "\(raw: funcDecl.name.text)", fileID: #fileID, line: \(raw: lineNumber)),\(raw: cancelInFlight ? "\n        cancelInFlight: true," : "")
+		        action: \(raw: actionBody)
+		    )
+		}
+		""")
 
 	var executeDecl = funcDecl
 	executeDecl.remove(attribute: "Action")
+	executeDecl.remove(attribute: "CancelInFlight")
 	executeDecl.remove(attribute: "_disfavoredOverload")
 	//    executeDecl.add(attribute: "MainActor")
-	//        executeDecl.modifiers.remove(at: privateIndex)
+	//     executeDecl.modifiers.remove(at: privateIndex)
 	var parameterList = executeDecl.signature.parameterClause.parameters.map {
 		FunctionParameterSyntax(
 			leadingTrivia: .newline,

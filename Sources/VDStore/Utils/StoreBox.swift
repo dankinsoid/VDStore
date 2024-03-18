@@ -10,23 +10,19 @@ struct StoreBox<Output>: Publisher {
 		nonmutating set { setter(newValue) }
 	}
 
-	let willSet: AnyPublisher<Void, Never>
-	let startUpdate: () -> Void
-	let endUpdate: () -> Void
-	let forceUpdate: () -> Void
+	var willSet: AnyPublisher<Void, Never> { root.willSetPublisher }
+
+	private let root: StoreRootBoxType
 	private let getter: () -> Output
 	private let setter: (Output) -> Void
 	private let valuePublisher: AnyPublisher<Output, Never>
 
 	init(_ value: Output) {
 		let rootBox = StoreRootBox(value)
-		willSet = rootBox.willSetPublisher
+		root = rootBox
 		valuePublisher = rootBox.eraseToAnyPublisher()
 		getter = { rootBox.state }
 		setter = { rootBox.state = $0 }
-		startUpdate = rootBox.startUpdate
-		endUpdate = rootBox.endUpdate
-		forceUpdate = rootBox.forceUpdateIfNeeded
 	}
 
 	init<T>(
@@ -34,25 +30,34 @@ struct StoreBox<Output>: Publisher {
 		get: @escaping (T) -> Output,
 		set: @escaping (inout T, Output) -> Void
 	) {
+		root = parent.root
 		valuePublisher = parent.valuePublisher.map(get).eraseToAnyPublisher()
-		willSet = parent.willSet
 		getter = { get(parent.getter()) }
 		setter = {
 			var state = parent.getter()
 			set(&state, $0)
 			parent.setter(state)
 		}
-		startUpdate = parent.startUpdate
-		endUpdate = parent.endUpdate
-		forceUpdate = parent.forceUpdate
 	}
+
+	func startUpdate() { root.startUpdate() }
+	func endUpdate() { root.endUpdate() }
+	func forceUpdate() { root.forceUpdateIfNeeded() }
 
 	func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Output == S.Input {
 		valuePublisher.receive(subscriber: subscriber)
 	}
 }
 
-private final class StoreRootBox<State>: Publisher {
+private protocol StoreRootBoxType {
+
+	var willSetPublisher: AnyPublisher<Void, Never> { get }
+	func startUpdate()
+	func endUpdate()
+	func forceUpdateIfNeeded()
+}
+
+private final class StoreRootBox<State>: StoreRootBoxType, Publisher {
 
 	typealias Output = State
 	typealias Failure = Never

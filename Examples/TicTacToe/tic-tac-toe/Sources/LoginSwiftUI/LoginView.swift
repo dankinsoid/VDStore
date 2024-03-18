@@ -47,15 +47,15 @@ public struct LoginView: View {
 			} label: {
 				HStack {
 					Text("Log in")
-					if state.isActivityIndicatorVisible {
+					if state.isLoginRequestInFlight {
 						Spacer()
 						ProgressView()
 					}
 				}
 			}
-			.disabled(state.isLoginButtonDisabled)
+			.disabled(!state.isFormValid)
 		}
-		.disabled(state.isFormDisabled)
+		.disabled(state.isLoginRequestInFlight)
 		.alert(state.flow.alert, isPresented: $state.binding.flow.isSelected(.alert)) {
 			Button("Ok") {}
 		}
@@ -64,12 +64,6 @@ public struct LoginView: View {
 		}
 		.navigationTitle("Login")
 	}
-}
-
-private extension Login {
-	var isActivityIndicatorVisible: Bool { isLoginRequestInFlight }
-	var isFormDisabled: Bool { isLoginRequestInFlight }
-	var isLoginButtonDisabled: Bool { !isFormValid }
 }
 
 #Preview {

@@ -3,12 +3,13 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 52;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8318EBE92BA76C760018B691 /* VDStore in Frameworks */ = {isa = PBXBuildFile; productRef = 8318EBE82BA76C760018B691 /* VDStore */; };
+		8318EBEF2BA84D320018B691 /* IdentifiedCollections in Frameworks */ = {isa = PBXBuildFile; productRef = 8318EBEE2BA84D320018B691 /* IdentifiedCollections */; };
 		CA93D060249BF4D000A6F65D /* Todo.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA93D05F249BF4D000A6F65D /* Todo.swift */; };
-		DC1394322469E57000EE1157 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = DC1394312469E57000EE1157 /* ComposableArchitecture */; };
 		DCBCB77624290F6C00DE1F59 /* TodosApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCBCB77524290F6C00DE1F59 /* TodosApp.swift */; };
 		DCBCB77A24290F6D00DE1F59 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DCBCB77924290F6D00DE1F59 /* Assets.xcassets */; };
 		DCBCB78B24290F6D00DE1F59 /* TodosTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCBCB78A24290F6D00DE1F59 /* TodosTests.swift */; };
@@ -51,7 +52,7 @@
 /* Begin PBXFileReference section */
 		23EDBE6A271CD8C7004F7430 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		CA93D05F249BF4D000A6F65D /* Todo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Todo.swift; sourceTree = "<group>"; };
-		DC85B441242D0286009784B0 /* swift-composable-architecture */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-composable-architecture"; path = ../..; sourceTree = "<group>"; };
+		DC85B441242D0286009784B0 /* VDStore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VDStore; path = ../..; sourceTree = "<group>"; };
 		DCBCB77024290F6C00DE1F59 /* Todos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Todos.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DCBCB77524290F6C00DE1F59 /* TodosApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodosApp.swift; sourceTree = "<group>"; };
 		DCBCB77924290F6D00DE1F59 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -65,7 +66,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DC1394322469E57000EE1157 /* ComposableArchitecture in Frameworks */,
+				8318EBE92BA76C760018B691 /* VDStore in Frameworks */,
+				8318EBEF2BA84D320018B691 /* IdentifiedCollections in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,14 +81,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8318EBE72BA76C760018B691 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		DCBCB76724290F6C00DE1F59 = {
 			isa = PBXGroup;
 			children = (
-				DC85B441242D0286009784B0 /* swift-composable-architecture */,
+				DC85B441242D0286009784B0 /* VDStore */,
 				23EDBE6A271CD8C7004F7430 /* README.md */,
 				DCBCB77124290F6C00DE1F59 /* Products */,
 				DCBCB77224290F6C00DE1F59 /* Todos */,
 				DCBCB78924290F6D00DE1F59 /* TodosTests */,
+				8318EBE72BA76C760018B691 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -136,7 +146,8 @@
 			);
 			name = Todos;
 			packageProductDependencies = (
-				DC1394312469E57000EE1157 /* ComposableArchitecture */,
+				8318EBE82BA76C760018B691 /* VDStore */,
+				8318EBEE2BA84D320018B691 /* IdentifiedCollections */,
 			);
 			productName = Todos;
 			productReference = DCBCB77024290F6C00DE1F59 /* Todos.app */;
@@ -192,6 +203,7 @@
 			);
 			mainGroup = DCBCB76724290F6C00DE1F59;
 			packageReferences = (
+				8318EBED2BA84D310018B691 /* XCRemoteSwiftPackageReference "swift-identified-collections" */,
 			);
 			productRefGroup = DCBCB77124290F6C00DE1F59 /* Products */;
 			projectDirPath = "";
@@ -493,10 +505,26 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		8318EBED2BA84D310018B691 /* XCRemoteSwiftPackageReference "swift-identified-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-identified-collections";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
-		DC1394312469E57000EE1157 /* ComposableArchitecture */ = {
+		8318EBE82BA76C760018B691 /* VDStore */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = ComposableArchitecture;
+			productName = VDStore;
+		};
+		8318EBEE2BA84D320018B691 /* IdentifiedCollections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8318EBED2BA84D310018B691 /* XCRemoteSwiftPackageReference "swift-identified-collections" */;
+			productName = IdentifiedCollections;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

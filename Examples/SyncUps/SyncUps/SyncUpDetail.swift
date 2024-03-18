@@ -4,19 +4,21 @@ import VDStore
 
 struct SyncUpDetail: Equatable {
 
-	var destination = Destination()
+	var destination: Destination = .none
 	var syncUp: SyncUp
 
 	@Steps
 	struct Destination: Equatable {
-		var alert = Alert()
-		var edit = SyncUpForm(syncUp: SyncUp(id: StoreDIValues.current.uuid()))
+		var alert: Alert = .none
+		var edit: SyncUpForm = .init(syncUp: SyncUp(id: StoreDIValues.current.uuid()))
+		var none
 
 		@Steps
 		struct Alert: Equatable {
 			var confirmDeletion
 			var speechRecognitionDenied
 			var speechRecognitionRestricted
+			var none
 		}
 	}
 }
@@ -41,7 +43,7 @@ extension Store<SyncUpDetail> {
 	}
 
 	func deleteButtonTapped() {
-		state.destination.alert.confirmDeletion.select()
+		state.destination.alert.$confirmDeletion.select()
 	}
 
 	func deleteMeetings(atOffsets indices: IndexSet) {
@@ -70,7 +72,7 @@ extension Store<SyncUpDetail> {
 	}
 
 	func editButtonTapped() {
-		state.destination.edit = SyncUpForm(syncUp: state.syncUp)
+		state.destination.$edit.select(with: SyncUpForm(syncUp: state.syncUp))
 	}
 
 	func startMeetingButtonTapped() {
@@ -79,10 +81,10 @@ extension Store<SyncUpDetail> {
 			di.syncUpDetailDelegate?.startMeeting(syncUp: state.syncUp)
 
 		case .denied:
-			state.destination.alert.speechRecognitionDenied.select()
+			state.destination.alert.$speechRecognitionDenied.select()
 
 		case .restricted:
-			state.destination.alert.speechRecognitionRestricted.select()
+			state.destination.alert.$speechRecognitionRestricted.select()
 
 		@unknown default:
 			break
@@ -93,14 +95,14 @@ extension Store<SyncUpDetail> {
 struct SyncUpDetailView: View {
 
 	@ViewStore var state: SyncUpDetail
-	@StateStep var feature = AppFeature.Path()
+	@StateStep var feature: AppFeature.Path = .list
 
 	init(state: SyncUpDetail) {
 		_state = ViewStore(wrappedValue: state)
 	}
 
 	init(store: Store<SyncUpDetail>) {
-		_state = ViewStore(store: store)
+		_state = ViewStore(store)
 	}
 
 	var body: some View {

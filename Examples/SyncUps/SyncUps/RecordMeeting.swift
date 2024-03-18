@@ -5,7 +5,7 @@ import VDStore
 
 struct RecordMeeting: Equatable {
 
-	var alert = Alert()
+	var alert: Alert = .none
 	var secondsElapsed = 0
 	var speakerIndex = 0
 	var syncUp: SyncUp
@@ -19,6 +19,7 @@ struct RecordMeeting: Equatable {
 	struct Alert: Equatable {
 		var endMeeting = true
 		var speechRecognizerFailed
+		var none
 	}
 
 	static let mock = RecordMeeting(syncUp: .engineeringMock)
@@ -57,13 +58,13 @@ extension Store<RecordMeeting> {
 	}
 
 	func endMeetingButtonTapped() {
-		state.alert.endMeeting = true
+		state.alert.$endMeeting.select(with: true)
 	}
 
 	func nextButtonTapped() {
 		guard state.speakerIndex < state.syncUp.attendees.count - 1
 		else {
-			state.alert.endMeeting = false
+			state.alert.$endMeeting.select(with: false)
 			return
 		}
 		state.speakerIndex += 1
@@ -123,7 +124,7 @@ extension Store<RecordMeeting> {
 		if !state.transcript.isEmpty {
 			state.transcript += " ❌"
 		}
-		state.alert.speechRecognizerFailed.select()
+		state.alert.$speechRecognizerFailed.select()
 	}
 }
 
@@ -132,11 +133,11 @@ struct RecordMeetingView: View {
 	@ViewStore var state: RecordMeeting
 
 	init(state: RecordMeeting) {
-		self.state = state
+		_state = ViewStore(wrappedValue: state)
 	}
 
 	init(store: Store<RecordMeeting>) {
-		_state = ViewStore(store: store)
+		_state = ViewStore(store)
 	}
 
 	var body: some View {

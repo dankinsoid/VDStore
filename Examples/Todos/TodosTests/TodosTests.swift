@@ -1,4 +1,4 @@
-import ComposableArchitecture
+import VDStore
 import XCTest
 
 @testable import Todos

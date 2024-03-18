@@ -1,5 +1,5 @@
 import Combine
-import Foundation
+import SwiftUI
 
 /// A store represents the runtime that powers the application. It is the object that you will pass
 /// around to views that need to interact with the application.
@@ -82,7 +82,7 @@ import Foundation
 ///
 /// ### Thread safety
 ///
-/// The `Store` class is isolated to main thread by @MainActor attribute.
+/// The `Store` class is isolated to main actor by @MainActor attribute.
 @propertyWrapper
 @dynamicMemberLookup
 @MainActor
@@ -333,16 +333,21 @@ public struct Store<State>: Sendable {
 
 public extension Store where State: MutableCollection {
 
-	nonisolated subscript(_ index: State.Index) -> Store<State.Element> {
-		scope(index)
-	}
-
-	nonisolated func scope(_ index: State.Index) -> Store<State.Element> {
-		scope {
-			$0[index]
-		} set: {
-			$0[index] = $1
-		}
+	subscript(index: State.Index, or defaultValue: State.Element) -> Store<State.Element> {
+		scope(
+			get: { state in
+				guard state.indices.contains(index) else {
+					return defaultValue
+				}
+				return state[index]
+			},
+			set: { state, newValue in
+				guard state.indices.contains(index) else {
+					return
+				}
+				state[index] = newValue
+			}
+		)
 	}
 }
 
@@ -377,5 +382,7 @@ private extension Store {
 	}
 }
 
-@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
-extension Store: Observable {}
+extension Store: Identifiable where State: Identifiable {
+
+	public var id: State.ID { state.id }
+}

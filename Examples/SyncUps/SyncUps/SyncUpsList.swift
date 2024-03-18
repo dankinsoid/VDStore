@@ -4,14 +4,14 @@ import VDStore
 
 struct SyncUpsList: Equatable {
 
-	var destination = Destination()
+	var destination: Destination
 	var syncUps: [SyncUp] = []
 
 	init(
-		destination: Destination.Steps? = nil,
+		destination: Destination = .none,
 		syncUps: () throws -> [SyncUp] = { [] }
 	) {
-		self.destination = Destination(destination)
+		self.destination = destination
 		do {
 			self.syncUps = try syncUps()
 		} catch is DecodingError {
@@ -24,8 +24,9 @@ struct SyncUpsList: Equatable {
 	@Steps
 	struct Destination: Equatable {
 
-		var add = SyncUpForm(syncUp: SyncUp(id: .init()))
+		var add: SyncUpForm = .init(syncUp: SyncUp(id: .init()))
 		var confirmLoadMockData
+		var none
 	}
 }
 
@@ -33,7 +34,7 @@ struct SyncUpsList: Equatable {
 extension Store<SyncUpsList> {
 
 	func addSyncUpButtonTapped() {
-		state.destination.add = SyncUpForm(syncUp: SyncUp(id: di.uuid()))
+		state.destination.$add.select(with: SyncUpForm(syncUp: SyncUp(id: di.uuid())))
 	}
 
 	func confirmAddSyncUpButtonTapped() {
@@ -51,7 +52,7 @@ extension Store<SyncUpsList> {
 	}
 
 	func destinationPresented() {
-		state.destination.confirmLoadMockData.select()
+		state.destination.$confirmLoadMockData.select()
 		state.syncUps = [
 			.mock,
 			.designMock,
@@ -71,21 +72,21 @@ extension Store<SyncUpsList> {
 struct SyncUpsListView: View {
 
 	@ViewStore var state: SyncUpsList
-	@StateStep var feature = AppFeature.Path()
+	@StateStep var feature: AppFeature.Path = .list
 
 	init(state: SyncUpsList) {
 		_state = ViewStore(wrappedValue: state)
 	}
 
 	init(store: Store<SyncUpsList>) {
-		_state = ViewStore(store: store)
+		_state = ViewStore(store)
 	}
 
 	var body: some View {
 		List {
 			ForEach(state.syncUps) { syncUp in
 				Button {
-					feature.detail = SyncUpDetail(syncUp: syncUp)
+					feature.$detail.select(with: SyncUpDetail(syncUp: syncUp))
 				} label: {
 					CardView(syncUp: syncUp)
 				}

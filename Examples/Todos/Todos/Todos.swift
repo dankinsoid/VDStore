@@ -1,5 +1,6 @@
-import ComposableArchitecture
+import IdentifiedCollections
 import SwiftUI
+import VDStore
 
 enum Filter: LocalizedStringKey, CaseIterable, Hashable {
 	case all = "All"
@@ -7,108 +8,78 @@ enum Filter: LocalizedStringKey, CaseIterable, Hashable {
 	case completed = "Completed"
 }
 
-@Reducer
-struct Todos {
-	@ObservableState
-	struct State: Equatable {
-		var editMode: EditMode = .inactive
-		var filter: Filter = .all
-		var todos: IdentifiedArrayOf<Todo.State> = []
+struct Todos: Equatable {
 
-		var filteredTodos: IdentifiedArrayOf<Todo.State> {
-			switch filter {
-			case .active: return todos.filter { !$0.isComplete }
-			case .all: return todos
-			case .completed: return todos.filter(\.isComplete)
-			}
-		}
-	}
+	var editMode: EditMode = .inactive
+	var filter: Filter = .all
+	var todos: IdentifiedArrayOf<Todo> = []
 
-	enum Action: BindableAction, Sendable {
-		case addTodoButtonTapped
-		case binding(BindingAction<State>)
-		case clearCompletedButtonTapped
-		case delete(IndexSet)
-		case move(IndexSet, Int)
-		case sortCompletedTodos
-		case todos(IdentifiedActionOf<Todo>)
-	}
-
-	@Dependency(\.continuousClock) var clock
-	@Dependency(\.uuid) var uuid
-	private enum CancelID { case todoCompletion }
-
-	var body: some Reducer<State, Action> {
-		BindingReducer()
-		Reduce { state, action in
-			switch action {
-			case .addTodoButtonTapped:
-				state.todos.insert(Todo.State(id: uuid()), at: 0)
-				return .none
-
-			case .binding:
-				return .none
-
-			case .clearCompletedButtonTapped:
-				state.todos.removeAll(where: \.isComplete)
-				return .none
-
-			case let .delete(indexSet):
-				let filteredTodos = state.filteredTodos
-				for index in indexSet {
-					state.todos.remove(id: filteredTodos[index].id)
-				}
-				return .none
-
-			case var .move(source, destination):
-				if state.filter == .completed {
-					source = IndexSet(
-						source
-							.map { state.filteredTodos[$0] }
-							.compactMap { state.todos.index(id: $0.id) }
-					)
-					destination =
-						(destination < state.filteredTodos.endIndex
-							? state.todos.index(id: state.filteredTodos[destination].id)
-							: state.todos.endIndex)
-						?? destination
-				}
-
-				state.todos.move(fromOffsets: source, toOffset: destination)
-
-				return .run { send in
-					try await clock.sleep(for: .milliseconds(100))
-					await send(.sortCompletedTodos)
-				}
-
-			case .sortCompletedTodos:
-				state.todos.sort { $1.isComplete && !$0.isComplete }
-				return .none
-
-			case .todos(.element(id: _, action: .binding(\.isComplete))):
-				return .run { send in
-					try await clock.sleep(for: .seconds(1))
-					await send(.sortCompletedTodos, animation: .default)
-				}
-				.cancellable(id: CancelID.todoCompletion, cancelInFlight: true)
-
-			case .todos:
-				return .none
-			}
-		}
-		.forEach(\.todos, action: \.todos) {
-			Todo()
+	var filteredTodos: IdentifiedArrayOf<Todo> {
+		switch filter {
+		case .active: return todos.filter { !$0.isComplete }
+		case .all: return todos
+		case .completed: return todos.filter(\.isComplete)
 		}
 	}
 }
 
+@Actions
+extension Store<Todos> {
+
+	func addTodoButtonTapped() {
+		state.todos.insert(Todo(id: di.uuid()), at: 0)
+	}
+
+	func clearCompletedButtonTapped() {
+		state.todos.removeAll(where: \.isComplete)
+	}
+
+	func delete(indexSet: IndexSet) {
+		let filteredTodos = state.filteredTodos
+		for index in indexSet {
+			state.todos.remove(id: filteredTodos[index].id)
+		}
+	}
+
+	func move(source: IndexSet, destination: Int) {
+		var source = source
+		var destination = destination
+		if state.filter == .completed {
+			let filtered = state.filteredTodos
+			source = IndexSet(
+				source
+					.map { filtered[$0] }
+					.compactMap { state.todos.index(id: $0.id) }
+			)
+			destination =
+				(destination < filtered.endIndex
+					? state.todos.index(id: filtered[destination].id)
+					: state.todos.endIndex)
+				?? destination
+		}
+
+		state.todos.move(fromOffsets: source, toOffset: destination)
+	}
+
+	@CancelInFlight
+	func todoIsCompletedChanged() async throws {
+		try await di.continuousClock.sleep(for: .seconds(1))
+		sortCompletedTodos()
+	}
+
+	func sortCompletedTodos() {
+		state.todos.sort { $1.isComplete && !$0.isComplete }
+	}
+}
+
 struct AppView: View {
-	@Bindable var store: StoreOf<Todos>
+
+	@ViewStore var todos: Todos
 
 	var body: some View {
 		NavigationStack {
 			VStack(alignment: .leading) {
-				Picker("Filter", selection: $store.filter.animation()) {
+				Picker("Filter", selection: $todos.binding.filter) {
 					ForEach(Filter.allCases, id: \.self) { filter in
 						Text(filter.rawValue).tag(filter)
 					}
@@ -117,11 +88,17 @@ struct AppView: View {
 				.padding(.horizontal)
 
 				List {
-					ForEach(store.scope(state: \.filteredTodos, action: \.todos)) { store in
-						TodoView(store: store)
+					ForEach(todos.filteredTodos) { todo in
+						TodoView(
+							store: $todos.todos[id: todo.id].or(todo).onChange(of: \.isComplete) { _, _, _ in
+								Task {
+									try await $todos.todoIsCompletedChanged()
+								}
+							}
+						)
 					}
-					.onDelete { store.send(.delete($0)) }
-					.onMove { store.send(.move($0, $1)) }
+					.onDelete { $todos.delete(indexSet: $0) }
+					.onMove { $todos.move(source: $0, destination: $1) }
 				}
 			}
 			.navigationTitle("Todos")
@@ -129,30 +106,31 @@ struct AppView: View {
 				trailing: HStack(spacing: 20) {
 					EditButton()
 					Button("Clear Completed") {
-						store.send(.clearCompletedButtonTapped, animation: .default)
+						$todos.clearCompletedButtonTapped()
 					}
-					.disabled(!store.todos.contains(where: \.isComplete))
-					Button("Add Todo") { store.send(.addTodoButtonTapped, animation: .default) }
+					.disabled(!todos.todos.contains(where: \.isComplete))
+					Button("Add Todo") { $todos.addTodoButtonTapped() }
 				}
 			)
-			.environment(\.editMode, $store.editMode)
+			.environment(\.editMode, $todos.binding.editMode)
 		}
+		.animation(.default, value: todos)
 	}
 }
 
-extension IdentifiedArray where ID == Todo.State.ID, Element == Todo.State {
+extension IdentifiedArrayOf<Todo> {
 	static let mock: Self = [
-		Todo.State(
+		Todo(
 			description: "Check Mail",
 			id: UUID(),
 			isComplete: false
 		),
-		Todo.State(
+		Todo(
 			description: "Buy Milk",
 			id: UUID(),
 			isComplete: false
 		),
-		Todo.State(
+		Todo(
 			description: "Call Mom",
 			id: UUID(),
 			isComplete: true
@@ -161,9 +139,5 @@ extension IdentifiedArray where ID == Todo.State.ID, Element == Todo.State {
 }
 
 #Preview {
-	AppView(
-		store: Store(initialState: Todos.State(todos: .mock)) {
-			Todos()
-		}
-	)
+	AppView(todos: Todos(todos: .mock))
 }

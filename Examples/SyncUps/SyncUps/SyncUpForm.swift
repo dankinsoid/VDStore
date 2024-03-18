@@ -54,7 +54,7 @@ struct SyncUpFormView: View {
 	}
 
 	init(store: Store<SyncUpForm>, focus: SyncUpForm.Field? = nil) {
-		_state = ViewStore(store: store)
+		_state = ViewStore(store)
 		self.focus = focus
 	}
 

@@ -11,8 +11,11 @@ public extension Store {
 			$0
 		} set: {
 			let oldValue = $0[keyPath: keyPath]
+			let newValue = $1[keyPath: keyPath]
 			$0 = $1
-			operation(oldValue, $1[keyPath: keyPath], &$0)
+			if !isDuplicate(oldValue, newValue) {
+				operation(oldValue, newValue, &$0)
+			}
 		}
 	}
 

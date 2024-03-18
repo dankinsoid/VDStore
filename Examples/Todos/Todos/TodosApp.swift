@@ -1,15 +1,11 @@
-import ComposableArchitecture
 import SwiftUI
+import VDStore
 
 @main
 struct TodosApp: App {
 	var body: some Scene {
 		WindowGroup {
-			AppView(
-				store: Store(initialState: Todos.State()) {
-					Todos()
-				}
-			)
+			AppView(todos: Todos())
 		}
 	}
 }

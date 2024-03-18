@@ -51,6 +51,5 @@ public protocol LoginDelegate {
 
 public extension StoreDIValues {
 
-	@StoreDIValue
-	var loginDelegate: LoginDelegate?
+	@StoreDIValue var loginDelegate: LoginDelegate?
 }

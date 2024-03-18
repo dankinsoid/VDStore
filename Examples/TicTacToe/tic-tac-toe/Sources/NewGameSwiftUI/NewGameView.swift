@@ -44,9 +44,6 @@ public struct NewGameView: View {
 				$state.di.logoutButtonDelegate?.logoutButtonTapped()
 			}
 		)
-		.navigationDestination(isPresented: $state.binding.flow.isSelected(.game)) {
-			GameView(store: $state.flow.game)
-		}
 	}
 }
 

@@ -20,8 +20,7 @@ extension DataManager {
 
 extension StoreDIValues {
 
-	@StoreDIValue
-	var dataManager: DataManager = valueFor(live: DataManager.liveValue, test: DataManager.testValue)
+	@StoreDIValue var dataManager: DataManager = valueFor(live: DataManager.liveValue, test: DataManager.testValue)
 }
 
 extension DataManager {

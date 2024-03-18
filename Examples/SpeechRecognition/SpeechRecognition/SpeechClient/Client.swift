@@ -81,8 +81,7 @@ final actor ActorIsolated<T> {
 
 extension StoreDIValues {
 
-	@StoreDIValue
-	var speechClient: SpeechClient = valueFor(
+	@StoreDIValue var speechClient: SpeechClient = valueFor(
 		live: .liveValue,
 		test: SpeechClient(),
 		preview: .previewValue

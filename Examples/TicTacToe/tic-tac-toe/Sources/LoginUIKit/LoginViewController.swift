@@ -99,13 +99,13 @@ public class LoginViewController: UIViewController {
 				if state.email != emailTextField.text {
 					emailTextField.text = state.email
 				}
-				emailTextField.isEnabled = state.isEmailTextFieldEnabled
+				emailTextField.isEnabled = !state.isLoginRequestInFlight
 				if passwordTextField.text != state.password {
 					passwordTextField.text = state.password
 				}
-				passwordTextField.isEnabled = state.isPasswordTextFieldEnabled
+				passwordTextField.isEnabled = !state.isLoginRequestInFlight
 				loginButton.isEnabled = state.isLoginButtonEnabled
-				activityIndicator.isHidden = state.isActivityIndicatorHidden
+				activityIndicator.isHidden = !state.isLoginRequestInFlight
 
 				if store.state.flow.selected == .alert,
 				   alertController == nil
@@ -158,10 +158,7 @@ public class LoginViewController: UIViewController {
 }
 
 private extension Login {
-	var isActivityIndicatorHidden: Bool { !isLoginRequestInFlight }
-	var isEmailTextFieldEnabled: Bool { !isLoginRequestInFlight }
 	var isLoginButtonEnabled: Bool { isFormValid && !isLoginRequestInFlight }
-	var isPasswordTextFieldEnabled: Bool { !isLoginRequestInFlight }
 }
 
 @Actions

@@ -12,7 +12,8 @@ public struct GameView: View {
 	}
 
 	public var body: some View {
-		GeometryReader { proxy in
+		Self._printChanges()
+		return GeometryReader { proxy in
 			VStack(spacing: 0.0) {
 				VStack {
 					Text(state.title)
@@ -28,7 +29,7 @@ public struct GameView: View {
 				}
 				.padding(.bottom, 48)
 
-				VStack {
+				VStack(spacing: 0.0) {
 					rowView(row: 0, proxy: proxy)
 					rowView(row: 1, proxy: proxy)
 					rowView(row: 2, proxy: proxy)

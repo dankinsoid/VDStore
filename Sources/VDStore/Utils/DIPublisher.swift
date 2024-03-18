@@ -48,8 +48,8 @@ struct DISubscriber<Base: Subscriber>: Subscriber {
 	}
 
 	func execute<T>(_ operation: () -> T) -> T {
-//		StoreDIValues.$current.withValue(values) {
-		operation()
-//		}
+		StoreDIValues.$current.withValue(values) {
+			operation()
+		}
 	}
 }

@@ -8,6 +8,11 @@ import Foundation
 @attached(member, names: arbitrary)
 public macro Actions() = #externalMacro(module: "VDStoreMacros", type: "ActionsMacro")
 
+/// Determines if any in-flight executions of the function should be canceled before starting this new one.
+/// Works within `@Actions` extension only.
+@attached(peer, names: arbitrary)
+public macro CancelInFlight() = #externalMacro(module: "VDStoreMacros", type: "CancelInFlightMacro")
+
 /// Creates an store DI variable and adds getters and setters.
 /// The initial value of the variable becomes the default value.
 @attached(accessor, names: named(get), named(set))

@@ -8,8 +8,7 @@ extension StoreDIValues {
 	}
 
 	/// Stores cancellables for Combine subscriptions.
-	@MainActor
-	public var cancellableSet: Set<AnyCancellable> {
+	@MainActor public var cancellableSet: Set<AnyCancellable> {
 		get { cancellableStorage.set }
 		nonmutating set { cancellableStorage.set = newValue }
 	}

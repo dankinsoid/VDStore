@@ -4,14 +4,14 @@ import VDStore
 
 struct AppFeature: Equatable {
 
-	var path = Path(.list)
+	var path: Path = .list
 	var syncUpsList = SyncUpsList()
 
 	@Steps
 	struct Path: Equatable {
 		var list
-		var detail = SyncUpDetail(syncUp: .engineeringMock)
-		var meeting = MeetingSyncUp()
+		var detail: SyncUpDetail = .init(syncUp: .engineeringMock)
+		var meeting: MeetingSyncUp = .init()
 		var record: RecordMeeting = .mock
 
 		struct MeetingSyncUp: Equatable {
@@ -37,7 +37,7 @@ extension Store<AppFeature>: SyncUpDetailDelegate {
 	}
 
 	func startMeeting(syncUp: SyncUp) {
-		state.path.record = RecordMeeting(syncUp: syncUp)
+		state.path.$record.select(with: RecordMeeting(syncUp: syncUp))
 	}
 }
 
@@ -49,8 +49,8 @@ extension Store<AppFeature>: RecordMeetingDelegate {
 		state.syncUpsList.syncUps[i] = state.path.detail.syncUp
 	}
 
+	@CancelInFlight
 	func debounceSave(syncUps: [SyncUp]) async throws {
-		cancel(Self.debounceSave)
 		try await di.continuousClock.sleep(for: .seconds(1))
 		try await di.dataManager.save(JSONEncoder().encode(syncUps), .syncUps)
 	}
@@ -72,11 +72,11 @@ struct AppView: View {
 	@ViewStore var state: AppFeature
 
 	init(state: AppFeature) {
-		self.state = state
+		_state = ViewStore(wrappedValue: state)
 	}
 
 	init(store: Store<AppFeature>) {
-		_state = ViewStore(store: store)
+		_state = ViewStore(store)
 	}
 
 	var body: some View {
@@ -98,7 +98,7 @@ struct AppView: View {
 
 	private var listView: some View {
 		SyncUpsListView(store: $state.syncUpsList)
-			.step($state.binding.path, \.$list)
+			.step($state.binding.path.$list)
 	}
 
 	private var detailView: some View {
@@ -106,7 +106,7 @@ struct AppView: View {
 			store: $state.path.detail
 				.di(\.syncUpDetailDelegate, $state)
 		)
-		.step($state.binding.path, \.$detail)
+		.step($state.binding.path.$detail)
 	}
 
 	private var meetingView: some View {
@@ -114,7 +114,7 @@ struct AppView: View {
 			meeting: state.path.meeting.meeting,
 			syncUp: state.path.meeting.syncUp
 		)
-		.step($state.binding.path, \.$meeting)
+		.step($state.binding.path.$meeting)
 	}
 
 	private var recordView: some View {
@@ -122,7 +122,7 @@ struct AppView: View {
 			store: $state.path.record
 				.di(\.recordMeetingDelegate, $state)
 		)
-		.step($state.binding.path, \.$record)
+		.step($state.binding.path.$record)
 	}
 }
 

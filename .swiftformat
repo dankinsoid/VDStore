@@ -7,8 +7,8 @@
 --disable sortDeclarations
 --disable blankLinesAtStartOfScope
 --disable opaqueGenericParameters
---enable redundanttype
 --header ""
+--enable redundanttype
 --enable organizeDeclarations
 --organizetypes markcategories
 --extensionacl on-extension

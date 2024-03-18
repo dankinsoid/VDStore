@@ -1,7 +1,9 @@
 import AppCore
+import GameSwiftUI
 import LoginSwiftUI
 import NewGameSwiftUI
 import SwiftUI
+import VDFlow
 import VDStore
 
 public struct AppView: View {
@@ -18,8 +20,10 @@ public struct AppView: View {
 				LoginView(store: $state.login)
 			}
 		case .newGame:
-			NavigationStack {
+			NavigationSteps(selection: $state.binding.newGame.flow.selected) {
 				NewGameView(store: $state.newGame)
+				GameView(store: $state.newGame.flow.game)
+					.step($state.binding.newGame.flow.$game)
 			}
 		}
 	}

@@ -116,8 +116,7 @@ final actor ActorIsolated<T> {
 
 extension StoreDIValues {
 
-	@StoreDIValue
-	var speechClient: SpeechClient = valueFor(live: .liveValue, test: .testValue, preview: .previewValue)
+	@StoreDIValue var speechClient: SpeechClient = valueFor(live: .liveValue, test: .testValue, preview: .previewValue)
 }
 
 struct SpeechRecognitionResult: Equatable {

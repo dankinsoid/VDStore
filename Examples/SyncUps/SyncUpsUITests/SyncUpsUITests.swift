@@ -1,8 +1,7 @@
 import XCTest
 
 final class SyncUpsUITests: XCTestCase {
-	@MainActor
-	var app: XCUIApplication!
+	@MainActor var app: XCUIApplication!
 
 	@MainActor
 	override func setUpWithError() throws {

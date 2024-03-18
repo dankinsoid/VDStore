@@ -26,6 +26,8 @@ public struct ViewStore<State>: DynamicProperty {
 			result = observable.wrappedValue.store
 		case let .store(store):
 			result = store
+		case let .state(state):
+			result = state.wrappedValue
 		}
 		return result.di(transformDI)
 	}
@@ -37,6 +39,10 @@ public struct ViewStore<State>: DynamicProperty {
 	public init(_ store: Store<State>) {
 		if store.di.isViewStore {
 			property = .store(store)
+		} else if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
+			property = .state(
+				SwiftUI.State(wrappedValue: store.di(\.isViewStore, true))
+			)
 		} else {
 			property = .stateObject(
 				StateObject(
@@ -54,6 +60,7 @@ public struct ViewStore<State>: DynamicProperty {
 	private enum Property: DynamicProperty {
 
 		case stateObject(StateObject<Observable>)
+		case state(SwiftUI.State<Store<State>>)
 		case store(Store<State>)
 	}
 

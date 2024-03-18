@@ -74,6 +74,5 @@ public extension AuthenticationClient {
 
 public extension StoreDIValues {
 
-	@StoreDIValue
-	var authenticationClient = valueFor(live: AuthenticationClient.liveValue, test: AuthenticationClient())
+	@StoreDIValue var authenticationClient = valueFor(live: AuthenticationClient.liveValue, test: AuthenticationClient())
 }
