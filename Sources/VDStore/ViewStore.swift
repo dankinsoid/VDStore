@@ -20,11 +20,11 @@ public struct ViewStore<State>: DynamicProperty {
 		nonmutating set { store.state = newValue }
 	}
 
-    public var projectedValue: Store<State> {
-        store
-    }
+	public var projectedValue: Store<State> {
+		store
+	}
 
-    public var store: Store<State> {
+	public var store: Store<State> {
 		let result: Store<State>
 		switch property {
 		case let .stateObject(observable):
@@ -61,11 +61,11 @@ public struct ViewStore<State>: DynamicProperty {
 		self.init(Store(wrappedValue: state))
 	}
 
-    public subscript<LocalValue>(
-        dynamicMember keyPath: WritableKeyPath<State, LocalValue>
-    ) -> Binding<LocalValue> {
-        store.binding[dynamicMember: keyPath]
-    }
+	public subscript<LocalValue>(
+		dynamicMember keyPath: WritableKeyPath<State, LocalValue>
+	) -> Binding<LocalValue> {
+		store.binding[dynamicMember: keyPath]
+	}
 
 	@MainActor
 	private enum Property: DynamicProperty {

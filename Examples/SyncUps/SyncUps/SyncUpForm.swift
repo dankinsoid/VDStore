@@ -1,6 +1,6 @@
 import SwiftUI
-import VDStore
 import VDFlow
+import VDStore
 
 struct SyncUpForm: Equatable {
 
@@ -60,7 +60,7 @@ struct SyncUpFormView: View {
 		Form {
 			Section {
 				TextField("Title", text: _state.syncUp.title)
-                    .focused(_state.focus, equals: .title)
+					.focused(_state.focus, equals: .title)
 				HStack {
 					Slider(value: _state.syncUp.duration.minutes, in: 5 ... 30, step: 1) {
 						Text("Length")
@@ -75,7 +75,7 @@ struct SyncUpFormView: View {
 			Section {
 				ForEach(_state.syncUp.attendees) { attendee in
 					TextField("Name", text: attendee.name)
-                        .focused(_state.focus, equals: .attendee(attendee.id))
+						.focused(_state.focus, equals: .attendee(attendee.id))
 				}
 				.onDelete { indices in
 					$state.deleteAttendees(atOffsets: indices)

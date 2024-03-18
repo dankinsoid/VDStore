@@ -65,6 +65,7 @@ private final class StoreRootBox<State>: StoreRootBoxType, Publisher {
 	private var _state: State
 	var state: State {
 		get {
+			checkStateThread()
 			_$observationRegistrar.access(box: self)
 			return _state
 		}
@@ -205,4 +206,16 @@ private struct MockObservationRegistrar: ObservationRegistrarProtocol {
 	func withMutation<State, T>(box: StoreRootBox<State>, _ mutation: () throws -> T) rethrows -> T {
 		try mutation()
 	}
+}
+
+private func checkStateThread() {
+	threadCheck(message:
+		"""
+		Store state was accessed on a non-main thread. …
+
+		The "Store" struct is not thread-safe, and so all interactions with an instance of \
+		"Store" (including all of its scopes and derived view stores) must be done on the main \
+		thread.
+		"""
+	)
 }

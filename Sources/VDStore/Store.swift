@@ -82,7 +82,7 @@ import SwiftUI
 ///
 /// ### Thread safety
 ///
-/// The `Store` class is isolated to main actor by @MainActor attribute.
+/// The `Store` class is isolated to main actor by @MainActor attribute, but the thread safety is not guaranteed. All the state changes should be done on the main thread.
 @propertyWrapper
 @dynamicMemberLookup
 @MainActor
