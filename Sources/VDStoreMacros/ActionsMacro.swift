@@ -21,8 +21,6 @@ public struct ActionsMacro: MemberAttributeMacro, MemberMacro {
 		for member in extensionDecl.memberBlock.members {
 			if let function = member.decl.as(FunctionDeclSyntax.self) {
 				result += try VDStoreMacros.expansion(of: node, funcDecl: function, in: context)
-			} else {
-				throw CustomError("\(type(of: member))")
 			}
 		}
 		return result
@@ -41,6 +39,8 @@ public struct ActionsMacro: MemberAttributeMacro, MemberMacro {
 		guard type.hasPrefix("Store<"), type.hasSuffix(">") else {
 			throw CustomError("@Actions only works on Store<State> extension")
 		}
+		guard let funcDecl = member.as(FunctionDeclSyntax.self) else { return [] }
+		guard !funcDecl.modifiers.contains(where: { $0.name.trimmed.description == "static" }) else { return [] }
 		return ["@_disfavoredOverload"]
 	}
 }
@@ -67,8 +67,15 @@ private func expansion(
 	funcDecl: FunctionDeclSyntax,
 	in context: some MacroExpansionContext
 ) throws -> [DeclSyntax] {
-	guard !funcDecl.modifiers.contains(where: { $0.trimmed.description == "private" }) else {
-		throw CustomError("Action functions must not be private")
+	let privateIndex = funcDecl.modifiers.firstIndex(where: { $0.trimmed.description == "private" })
+	//    if privateIndex == nil {
+	//        context.diagnose(Diagnostic(node: Syntax(funcDecl), message: Feedback(
+	//            .warning,
+	//            "It's recommended to make `\(funcDecl.name.trimmed.text)` private."
+	//        )))
+	//    }
+	guard !funcDecl.modifiers.contains(where: { $0.name.trimmed.description == "static" }) else {
+		return []
 	}
 
 	let isAsync = funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil
@@ -132,11 +139,12 @@ private func expansion(
 		""")
 
 	var executeDecl = funcDecl
-	executeDecl.remove(attribute: "Action")
+	if let privateIndex {
+		executeDecl.modifiers.remove(at: privateIndex)
+	}
 	executeDecl.remove(attribute: "CancelInFlight")
 	executeDecl.remove(attribute: "_disfavoredOverload")
-	//    executeDecl.add(attribute: "MainActor")
-	//     executeDecl.modifiers.remove(at: privateIndex)
+
 	var parameterList = executeDecl.signature.parameterClause.parameters.map {
 		FunctionParameterSyntax(
 			leadingTrivia: .newline,

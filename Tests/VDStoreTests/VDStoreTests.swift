@@ -63,7 +63,7 @@ final class VDStoreTests: XCTestCase {
 			for i in 0 ..< 10 {
 				guard !Task.isCancelled else { return i }
 				if i == 5 {
-					await store.cancel(id: id)
+					store.cancel(id: id)
 				}
 			}
 			return 10

@@ -72,6 +72,17 @@ extension Store<Todos> {
 	}
 }
 
+extension Store<Todo> {
+
+	var updateOnCompleted: Store<Todo> {
+		onChange(of: \.isComplete) { _, _, _ in
+			Task {
+				try await di.store(for: Todos.self)?.todoIsCompletedChanged()
+			}
+		}
+	}
+}
+
 struct AppView: View {
 
 	@ViewStore var todos: Todos
@@ -90,11 +101,7 @@ struct AppView: View {
 				List {
 					ForEach(todos.filteredTodos) { todo in
 						TodoView(
-							store: $todos.todos[id: todo.id].or(todo).onChange(of: \.isComplete) { _, _, _ in
-								Task {
-									try await $todos.todoIsCompletedChanged()
-								}
-							}
+							store: $todos.todos[id: todo.id].or(todo).updateOnCompleted
 						)
 					}
 					.onDelete { $todos.delete(indexSet: $0) }

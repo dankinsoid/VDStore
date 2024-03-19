@@ -1,51 +1,54 @@
+import Clocks
+import IdentifiedCollections
 import VDStore
 import XCTest
 
 @testable import Todos
 
 final class TodosTests: XCTestCase {
+
 	let clock = TestClock()
 
 	@MainActor
 	func testAddTodo() async {
-		let store = TestStore(initialState: Todos.State()) {
-			Todos()
-		} withDependencies: {
-			$0.uuid = .incrementing
-		}
+		let store = Store(Todos()).di(\.uuid, .incrementing)
 
-		await store.send(.addTodoButtonTapped) {
-			$0.todos.insert(
-				Todo.State(
-					description: "",
-					id: UUID(0),
-					isComplete: false
-				),
-				at: 0
-			)
-		}
-
-		await store.send(.addTodoButtonTapped) {
-			$0.todos = [
-				Todo.State(
-					description: "",
-					id: UUID(1),
-					isComplete: false
-				),
-				Todo.State(
+		store.addTodoButtonTapped()
+		XCTAssertEqual(
+			store.state.todos,
+			[
+				Todo(
 					description: "",
 					id: UUID(0),
 					isComplete: false
 				),
 			]
-		}
+		)
+
+		store.addTodoButtonTapped()
+
+		XCTAssertEqual(
+			store.state.todos,
+			[
+				Todo(
+					description: "",
+					id: UUID(1),
+					isComplete: false
+				),
+				Todo(
+					description: "",
+					id: UUID(0),
+					isComplete: false
+				),
+			]
+		)
 	}
 
 	@MainActor
 	func testEditTodo() async {
-		let state = Todos.State(
+		let state = Todos(
 			todos: [
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(0),
 					isComplete: false
@@ -53,60 +56,64 @@ final class TodosTests: XCTestCase {
 			]
 		)
 
-		let store = TestStore(initialState: state) {
-			Todos()
-		}
+		let store = Store(state)
+		store.state.todos[id: UUID(0)]?.description = "Learn VDStore"
 
-		await store.send(\.todos[id: UUID(0)].binding.description, "Learn Composable Architecture") {
-			$0.todos[id: UUID(0)]?.description = "Learn Composable Architecture"
-		}
+		XCTAssertEqual(
+			store.state.todos,
+			[
+				Todo(
+					description: "Learn VDStore",
+					id: UUID(0),
+					isComplete: false
+				),
+			]
+		)
 	}
 
 	@MainActor
-	func testCompleteTodo() async {
-		let state = Todos.State(
-			todos: [
-				Todo.State(
-					description: "",
-					id: UUID(0),
-					isComplete: false
-				),
-				Todo.State(
-					description: "",
-					id: UUID(1),
-					isComplete: false
-				),
-			]
-		)
+	func testCompleteTodo() async throws {
+		let todos: IdentifiedArrayOf<Todo> = [
+			Todo(
+				description: "",
+				id: UUID(0),
+				isComplete: false
+			),
+			Todo(
+				description: "",
+				id: UUID(1),
+				isComplete: false
+			),
+		]
+		let state = Todos(todos: todos)
 
-		let store = TestStore(initialState: state) {
-			Todos()
-		} withDependencies: {
-			$0.continuousClock = self.clock
-		}
+		let middleware = TestMiddleware()
+		let store = Store(state)
+			.di(\.continuousClock, clock)
+			.middleware(middleware)
 
-		await store.send(\.todos[id: UUID(0)].binding.isComplete, true) {
-			$0.todos[id: UUID(0)]?.isComplete = true
-		}
+		let itemStore = store.todos[id: UUID(0)].or(.mock).updateOnCompleted
+
+		itemStore.state.isComplete = true
 		await clock.advance(by: .seconds(1))
-		await store.receive(\.sortCompletedTodos) {
-			$0.todos = [
-				$0.todos[1],
-				$0.todos[0],
-			]
-		}
+
+		try await middleware.waitExecution(of: Store<Todos>.sortCompletedTodos)
+		XCTAssertEqual(
+			store.state.todos,
+			[todos[1], todos[0]]
+		)
 	}
 
 	@MainActor
 	func testCompleteTodoDebounces() async {
-		let state = Todos.State(
+		let state = Todos(
 			todos: [
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(0),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(1),
 					isComplete: false
@@ -114,33 +121,35 @@ final class TodosTests: XCTestCase {
 			]
 		)
 
-		let store = TestStore(initialState: state) {
-			Todos()
-		} withDependencies: {
-			$0.continuousClock = self.clock
-		}
+		let middleware = TestMiddleware()
+		let store = Store(Todos())
+			.di(\.continuousClock, clock)
+			.middleware(middleware)
 
-		await store.send(\.todos[id: UUID(0)].binding.isComplete, true) {
-			$0.todos[id: UUID(0)]?.isComplete = true
-		}
+		let itemStore = store.todos[id: UUID(0)].or(.mock).updateOnCompleted
+
+		itemStore.state.isComplete = true
+		XCTAssertTrue(itemStore.state.isComplete)
+
 		await clock.advance(by: .milliseconds(500))
-		await store.send(\.todos[id: UUID(0)].binding.isComplete, false) {
-			$0.todos[id: UUID(0)]?.isComplete = false
-		}
+
+		itemStore.state.isComplete = false
+		XCTAssertFalse(itemStore.state.isComplete)
+
 		await clock.advance(by: .seconds(1))
-		await store.receive(\.sortCompletedTodos)
+		middleware.didCall(Store<Todos>.sortCompletedTodos)
 	}
 
 	@MainActor
 	func testClearCompleted() async {
-		let state = Todos.State(
+		let state = Todos(
 			todos: [
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(0),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(1),
 					isComplete: true
@@ -148,32 +157,29 @@ final class TodosTests: XCTestCase {
 			]
 		)
 
-		let store = TestStore(initialState: state) {
-			Todos()
-		}
-
-		await store.send(.clearCompletedButtonTapped) {
-			$0.todos = [
-				$0.todos[0],
-			]
-		}
+		let store = Store(Todos())
+		store.clearCompletedButtonTapped()
+		XCTAssertEqual(
+			store.state.todos,
+			[state.todos[0]]
+		)
 	}
 
 	@MainActor
 	func testDelete() async {
-		let state = Todos.State(
+		let state = Todos(
 			todos: [
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(0),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(1),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(2),
 					isComplete: false
@@ -181,34 +187,30 @@ final class TodosTests: XCTestCase {
 			]
 		)
 
-		let store = TestStore(initialState: state) {
-			Todos()
-		}
-
-		await store.send(.delete([1])) {
-			$0.todos = [
-				$0.todos[0],
-				$0.todos[2],
-			]
-		}
+		let store = Store(Todos())
+		store.delete(indexSet: [1])
+		XCTAssertEqual(
+			store.state.todos,
+			[state.todos[0], state.todos[2]]
+		)
 	}
 
 	@MainActor
 	func testDeleteWhileFiltered() async {
-		let state = Todos.State(
+		let state = Todos(
 			filter: .completed,
 			todos: [
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(0),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(1),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(2),
 					isComplete: true
@@ -216,33 +218,29 @@ final class TodosTests: XCTestCase {
 			]
 		)
 
-		let store = TestStore(initialState: state) {
-			Todos()
-		}
-
-		await store.send(.delete([0])) {
-			$0.todos = [
-				$0.todos[0],
-				$0.todos[1],
-			]
-		}
+		let store = Store(Todos())
+		store.delete(indexSet: [0])
+		XCTAssertEqual(
+			store.state.todos,
+			[state.todos[1], state.todos[2]]
+		)
 	}
 
 	@MainActor
 	func testEditModeMoving() async {
-		let state = Todos.State(
+		let state = Todos(
 			todos: [
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(0),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(1),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(2),
 					isComplete: false
@@ -250,46 +248,43 @@ final class TodosTests: XCTestCase {
 			]
 		)
 
-		let store = TestStore(initialState: state) {
-			Todos()
-		} withDependencies: {
-			$0.continuousClock = self.clock
-		}
+		let middleware = TestMiddleware()
+		let store = Store(Todos())
+			.di(\.continuousClock, clock)
+			.middleware(middleware)
 
-		await store.send(\.binding.editMode, .active) {
-			$0.editMode = .active
-		}
-		await store.send(.move([0], 2)) {
-			$0.todos = [
-				$0.todos[1],
-				$0.todos[0],
-				$0.todos[2],
-			]
-		}
+		store.state.editMode = .active
+		XCTAssertEqual(store.state.editMode, .active)
+		store.move(source: [0], destination: 2)
+
+		XCTAssertEqual(
+			store.state.todos,
+			[state.todos[1], state.todos[0], state.todos[2]]
+		)
 		await clock.advance(by: .milliseconds(100))
-		await store.receive(\.sortCompletedTodos)
+		middleware.didCall(Store<Todos>.sortCompletedTodos)
 	}
 
 	@MainActor
 	func testEditModeMovingWithFilter() async {
-		let state = Todos.State(
+		let state = Todos(
 			todos: [
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(0),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(1),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(2),
 					isComplete: true
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(3),
 					isComplete: true
@@ -297,41 +292,37 @@ final class TodosTests: XCTestCase {
 			]
 		)
 
-		let store = TestStore(initialState: state) {
-			Todos()
-		} withDependencies: {
-			$0.continuousClock = self.clock
-			$0.uuid = .incrementing
-		}
+		let middleware = TestMiddleware()
+		let store = Store(Todos())
+			.di(\.continuousClock, clock)
+			.di(\.uuid, .incrementing)
+			.middleware(middleware)
 
-		await store.send(\.binding.editMode, .active) {
-			$0.editMode = .active
-		}
-		await store.send(\.binding.filter, .completed) {
-			$0.filter = .completed
-		}
-		await store.send(.move([0], 2)) {
-			$0.todos = [
-				$0.todos[0],
-				$0.todos[1],
-				$0.todos[3],
-				$0.todos[2],
-			]
-		}
+		store.state.editMode = .active
+		XCTAssertEqual(store.state.editMode, .active)
+		store.state.filter = .completed
+		XCTAssertEqual(store.state.filter, .completed)
+
+		store.move(source: [0], destination: 2)
+
+		XCTAssertEqual(
+			store.state.todos,
+			[state.todos[0], state.todos[1], state.todos[3], state.todos[2]]
+		)
 		await clock.advance(by: .milliseconds(100))
-		await store.receive(\.sortCompletedTodos)
+		middleware.didCall(Store<Todos>.sortCompletedTodos)
 	}
 
 	@MainActor
 	func testFilteredEdit() async {
-		let state = Todos.State(
+		let state = Todos(
 			todos: [
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(0),
 					isComplete: false
 				),
-				Todo.State(
+				Todo(
 					description: "",
 					id: UUID(1),
 					isComplete: true
@@ -339,15 +330,12 @@ final class TodosTests: XCTestCase {
 			]
 		)
 
-		let store = TestStore(initialState: state) {
-			Todos()
-		}
-
-		await store.send(\.binding.filter, .completed) {
-			$0.filter = .completed
-		}
-		await store.send(\.todos[id: UUID(1)].binding.description, "Did this already") {
-			$0.todos[id: UUID(1)]?.description = "Did this already"
-		}
+		let store = Store(Todos())
+		store.state.filter = .completed
+		store.state.todos[id: UUID(1)]?.description = "Did this already"
+		XCTAssertEqual(
+			store.state.todos[id: UUID(1)]?.description,
+			"Did this already"
+		)
 	}
 }
