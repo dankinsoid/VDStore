@@ -17,7 +17,7 @@ extension StoreDIValues {
 @MainActor
 final class CancellableStorage {
 
-	static let shared = CancellableStorage()
+	static nonisolated let shared = CancellableStorage()
 
 	var set: Set<AnyCancellable> = []
 

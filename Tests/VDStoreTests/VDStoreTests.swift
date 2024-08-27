@@ -2,18 +2,17 @@ import Combine
 @testable import VDStore
 import XCTest
 
-@MainActor
 final class VDStoreTests: XCTestCase {
 
 	/// Test that initializing a Store with a given state sets the initial state correctly.
-	func testInitialState() {
+	@MainActor func testInitialState() {
 		let initialCounter = Counter(counter: 10)
 		let store = Store(initialCounter)
 		XCTAssertEqual(store.state.counter, 10)
 	}
 
 	/// Test that a state mutation updates the state as expected.
-	func testStateMutation() {
+    @MainActor func testStateMutation() {
 		let store = Store(Counter())
 		store.add()
 
@@ -72,7 +71,7 @@ final class VDStoreTests: XCTestCase {
 		XCTAssertEqual(value, 6)
 	}
 
-	func testUpdate() {
+    @MainActor func testUpdate() {
 		let store = Store(Counter())
 		let publisher = store.publisher
 		var count = 0
@@ -91,7 +90,7 @@ final class VDStoreTests: XCTestCase {
 	}
 
 	/// Test that the publisher property of a Store sends updates when the state changes.
-	func testAsyncSequenceUpdates() async {
+    @MainActor func testAsyncSequenceUpdates() async {
 		let initialCounter = Counter(counter: 0)
 		let store = Store(initialCounter)
 		Task {
@@ -106,7 +105,7 @@ final class VDStoreTests: XCTestCase {
 
 	#if swift(>=5.9)
 	/// Test that the publisher property of a Store sends updates when the state changes.
-	func testPublisherUpdates() async {
+    @MainActor func testPublisherUpdates() async {
 		let initialCounter = Counter(counter: 0)
 		let store = Store(initialCounter)
 		let expectation = expectation(description: "State updated")
@@ -123,19 +122,19 @@ final class VDStoreTests: XCTestCase {
 		await fulfillment(of: [expectation], timeout: 0.1)
 	}
 
-	func testTasksMacroCancel() async {
+    @MainActor func testTasksMacroCancel() async {
 		let store = Store(Counter())
 		let value = await store.cancellableTask()
 		XCTAssertEqual(value, 6)
 	}
 
-	func testTaskMacroCancelInFlight() async {
+    @MainActor func testTaskMacroCancelInFlight() async {
 		let store = Store(Counter())
 		let value = await store.cancellableInFlightTask()
 		XCTAssertEqual(value, 6)
 	}
 
-	func testNumberOfUpdates() async {
+    @MainActor func testNumberOfUpdates() async {
 		let store = Store(Counter())
 		let publisher = store.publisher
 		var updatesCount = 0
@@ -164,7 +163,7 @@ final class VDStoreTests: XCTestCase {
 		XCTAssertEqual(updatesCount, 2)
 	}
 
-	func testOnChange() async {
+    @MainActor func testOnChange() async {
 		let expectation = expectation(description: "Counter")
 		let store = Store(Counter()).onChange(of: \.counter) { _, _, state in
 			state.counter += 1
@@ -177,7 +176,7 @@ final class VDStoreTests: XCTestCase {
 		XCTAssertEqual(store.state.counter, 2)
 	}
 
-	func testSyncUpdateInAsyncUpdate() async {
+    @MainActor func testSyncUpdateInAsyncUpdate() async {
 		let store = Store(Counter())
 		let publisher = store.publisher
 		var updatesCount = 0
@@ -210,7 +209,7 @@ final class VDStoreTests: XCTestCase {
 		XCTAssertEqual(updatesCount, 3)
 	}
 
-	func testAsyncUpdateInSyncUpdate() async {
+    @MainActor func testAsyncUpdateInSyncUpdate() async {
 		let store = Store(Counter())
 		let publisher = store.publisher
 		var updatesCount = 0

@@ -1,7 +1,7 @@
-import Combine
+@preconcurrency import Combine
 import Foundation
 
-struct StoreBox<Output>: Publisher {
+struct StoreBox<Output>: Publisher, Sendable {
 
 	typealias Failure = Never
 
@@ -13,8 +13,8 @@ struct StoreBox<Output>: Publisher {
 	var willSet: AnyPublisher<Void, Never> { root.willSetPublisher }
 
 	private let root: StoreRootBoxType
-	private let getter: () -> Output
-	private let setter: (Output) -> Void
+	private let getter: @Sendable () -> Output
+	private let setter: @Sendable (Output) -> Void
 	private let valuePublisher: AnyPublisher<Output, Never>
 
 	init(_ value: Output) {
@@ -49,7 +49,7 @@ struct StoreBox<Output>: Publisher {
 	}
 }
 
-private protocol StoreRootBoxType {
+private protocol StoreRootBoxType: Sendable {
 
 	var willSetPublisher: AnyPublisher<Void, Never> { get }
 	func startUpdate()
@@ -57,7 +57,7 @@ private protocol StoreRootBoxType {
 	func forceUpdateIfNeeded()
 }
 
-private final class StoreRootBox<State>: StoreRootBoxType, Publisher {
+private final class StoreRootBox<State>: StoreRootBoxType, Publisher, @unchecked Sendable {
 
 	typealias Output = State
 	typealias Failure = Never
