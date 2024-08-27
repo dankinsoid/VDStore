@@ -14,6 +14,7 @@ let package = Package(
 	],
 	products: [
 		.library(name: "VDStore", targets: ["VDStore"]),
+		.library(name: "VDStoreTestUtils", targets: ["VDStoreTestUtils"]),
 	],
 	dependencies: [
 		.package(url: "https://github.com/apple/swift-syntax.git", from: "509.0.2"),
@@ -27,6 +28,7 @@ let package = Package(
 				.product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
 			]
 		),
-		.testTarget(name: "VDStoreTests", dependencies: ["VDStore"]),
+		.target(name: "VDStoreTestUtils", dependencies: ["VDStore"]),
+		.testTarget(name: "VDStoreTests", dependencies: ["VDStoreTestUtils"]),
 	]
 )

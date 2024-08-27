@@ -7,33 +7,24 @@ func runtimeWarn(
 	_ message: @autoclosure () -> String,
 	category: String? = "VDStore"
 ) {
-	#if DEBUG
+#if DEBUG
 	let message = message()
 	let category = category ?? "Runtime Warning"
-	if _XCTIsTesting {
-		#if canImport(XCTest)
-		XCTFail(message)
-		#endif
-	} else {
-		#if canImport(os)
-		os_log(
-			.fault,
-			dso: dso,
-			log: OSLog(subsystem: "com.apple.runtime-issues", category: category),
-			"%@",
-			message
-		)
-		#else
-		fputs("\(formatter.string(from: Date())) [\(category)] \(message)\n", stderr)
-		#endif
-	}
-	#endif
+#if canImport(os)
+	os_log(
+		.fault,
+		dso: dso,
+		log: OSLog(subsystem: "com.apple.runtime-issues", category: category),
+		"%@",
+		message
+	)
+#else
+	fputs("\(formatter.string(from: Date())) [\(category)] \(message)\n", stderr)
+#endif
+#endif
 }
 
 #if DEBUG
-#if canImport(XCTest)
-import XCTest
-#endif
 
 #if canImport(os)
 import os

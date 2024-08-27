@@ -1,6 +1,7 @@
 #if canImport(XCTest)
 import Foundation
 import XCTest
+@_exported import VDStore
 
 public final class TestMiddleware: StoreMiddleware {
 

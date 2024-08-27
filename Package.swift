@@ -13,15 +13,13 @@ let package = Package(
 	],
 	products: [
 		.library(name: "VDStore", targets: ["VDStore"]),
+		.library(name: "VDStoreTestUtils", targets: ["VDStoreTestUtils"]),
 	],
 	dependencies: [
 	],
 	targets: [
-		.target(
-			name: "VDStore",
-			dependencies: [
-			]
-		),
-		.testTarget(name: "VDStoreTests", dependencies: ["VDStore"]),
+		.target(name: "VDStore", dependencies: []),
+		.target(name: "VDStoreTestUtils", dependencies: ["VDStore"]),
+		.testTarget(name: "VDStoreTests", dependencies: ["VDStoreTestUtils"]),
 	]
 )
