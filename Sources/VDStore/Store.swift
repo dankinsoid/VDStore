@@ -326,7 +326,7 @@ public struct Store<State>: Sendable {
 		try await StoreDIValues.$current.withValue(diModifier, operation: operation)
 	}
 
-	func forceUpdateIfNeeded() {
+	func forceUpdate() {
 		box.forceUpdate()
 	}
 }
@@ -380,9 +380,4 @@ private extension Store {
 	nonisolated func withDI<P: Publisher>(_ publisher: P) -> AnyPublisher<P.Output, P.Failure> {
 		DIPublisher(base: publisher, modifier: diModifier).eraseToAnyPublisher()
 	}
-}
-
-extension Store: Identifiable where State: Identifiable {
-
-	public var id: State.ID { state.id }
 }

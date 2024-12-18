@@ -42,7 +42,7 @@ struct StoreBox<Output>: Publisher, Sendable {
 
 	func startUpdate() { root.startUpdate() }
 	func endUpdate() { root.endUpdate() }
-	func forceUpdate() { root.forceUpdateIfNeeded() }
+	func forceUpdate() { root.forceUpdate() }
 
 	func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Output == S.Input {
 		valuePublisher.receive(subscriber: subscriber)
@@ -54,7 +54,7 @@ private protocol StoreRootBoxType: Sendable {
 	var willSetPublisher: AnyPublisher<Void, Never> { get }
 	func startUpdate()
 	func endUpdate()
-	func forceUpdateIfNeeded()
+	func forceUpdate()
 }
 
 private final class StoreRootBox<State>: StoreRootBoxType, Publisher, @unchecked Sendable {
@@ -131,7 +131,7 @@ private final class StoreRootBox<State>: StoreRootBoxType, Publisher, @unchecked
 		}
 	}
 
-	func forceUpdateIfNeeded() {
+	func forceUpdate() {
 		guard updatesCounter > 0 || asyncUpdatesCounter > 0 else { return }
 		sendDidSet()
 		sendWillSet()

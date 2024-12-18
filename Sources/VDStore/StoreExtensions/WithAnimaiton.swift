@@ -7,7 +7,7 @@ public extension Store {
 	func withAnimation<T>(_ animation: Animation? = .default, _ operation: @MainActor () throws -> T) rethrows -> T {
 		try SwiftUI.withAnimation(animation) {
 			let result = try update(operation)
-			forceUpdateIfNeeded()
+			forceUpdate()
 			return result
 		}
 	}
