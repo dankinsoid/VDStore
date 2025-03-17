@@ -8,5 +8,5 @@ func threadCheck(message: @autoclosure () -> String) {
 }
 #else
 @_transparent
-func threadCheck(status: ThreadCheckStatus) {}
+func threadCheck(message: @autoclosure () -> String) {}
 #endif
