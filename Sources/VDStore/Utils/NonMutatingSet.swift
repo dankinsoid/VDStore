@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(os)
+import os
+#endif
 
 /// A property wrapper that provides thread-safe, non-mutating write access to a value.
 ///
@@ -77,7 +80,7 @@ public struct NonMutatingSet<Value> {
 
 	fileprivate final class Box {
 
-		private let lock = NSLock()
+		private let lock: any SynchronizationLock
 		private var _value: Value
 	
 		var value: Value {
@@ -91,6 +94,16 @@ public struct NonMutatingSet<Value> {
 
 		init(value: Value) {
 			self._value = value
+			self.lock = Self.createOptimalLock()
+		}
+		
+		private static func createOptimalLock() -> any SynchronizationLock {
+			#if canImport(os)
+			if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
+				return UnfairLockWrapper()
+			}
+			#endif
+			return NSLockWrapper()
 		}
 	}
 }
@@ -139,6 +152,35 @@ public extension NonMutatingSet where Value: ExpressibleByNilLiteral {
 
 extension NonMutatingSet.Box: @unchecked Sendable where Value: Sendable {}
 extension NonMutatingSet: Sendable where Value: Sendable {}
+
+// MARK: - Internal Synchronization Protocol
+
+internal protocol SynchronizationLock: Sendable {
+	func withLock<T>(_ body: @Sendable () throws -> T) rethrows -> T
+}
+
+// MARK: - NSLock Wrapper
+
+internal struct NSLockWrapper: SynchronizationLock {
+	private let nsLock = NSLock()
+	
+	func withLock<T>(_ body: @Sendable () throws -> T) rethrows -> T {
+		try nsLock.withLock(body)
+	}
+}
+
+// MARK: - OSAllocatedUnfairLock Wrapper
+
+#if canImport(os)
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+internal struct UnfairLockWrapper: SynchronizationLock {
+	private let unfairLock = OSAllocatedUnfairLock()
+	
+	func withLock<T>(_ body: @Sendable () throws -> T) rethrows -> T {
+		try unfairLock.withLock(body)
+	}
+}
+#endif
 
 public extension KeyedDecodingContainer {
 
