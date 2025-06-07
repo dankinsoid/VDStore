@@ -67,6 +67,7 @@ private protocol CancellableTask {
 
 extension Task: CancellableTask {}
 
+@MainActor
 public extension Store {
 
 	/// Create a throwing task with cancellation id.
@@ -79,7 +80,7 @@ public extension Store {
 	func task<T>(
 		id: AnyHashable,
 		cancelInFlight: Bool = false,
-		_ task: @MainActor @escaping @Sendable () async throws -> T
+		_ task: @MainActor @escaping () async throws -> T
 	) -> Task<T, Error> {
 		withDIValues {
 			Task(operation: task)
@@ -96,7 +97,7 @@ public extension Store {
 	func task<T>(
 		id: AnyHashable,
 		cancelInFlight: Bool = false,
-		_ task: @MainActor @escaping @Sendable () async -> T
+		_ task: @MainActor @escaping () async -> T
 	) -> Task<T, Never> {
 		withDIValues {
 			Task(operation: task)

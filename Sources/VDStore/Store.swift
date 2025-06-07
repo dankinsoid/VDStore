@@ -86,10 +86,10 @@ import SwiftUI
 @propertyWrapper
 @dynamicMemberLookup
 @MainActor
-public struct Store<State>: Sendable {
+public struct Store<State> {
 
 	/// The state of the store.
-	public var state: State {
+	@MainActor public var state: State {
 		get { box.state }
 		nonmutating set { box.state = newValue }
 	}
@@ -127,9 +127,9 @@ public struct Store<State>: Sendable {
 		withDI(box.willSet)
 	}
 
-	private let box: StoreBox<State>
-	private let _diModifier: @Sendable (StoreDIValues) -> StoreDIValues
-	private nonisolated var diModifier: @Sendable (StoreDIValues) -> StoreDIValues {
+	private nonisolated let box: StoreBox<State>
+	private nonisolated let _diModifier: (StoreDIValues) -> StoreDIValues
+	private nonisolated var diModifier: (StoreDIValues) -> StoreDIValues {
 		{ _diModifier($0.with(store: self)) }
 	}
 
@@ -144,18 +144,23 @@ public struct Store<State>: Sendable {
 	}
 
 	/// Creates a new `Store` with the initial state.
-	public nonisolated init(wrappedValue state: State) {
+	public init(wrappedValue state: State) {
 		self.init(state)
 	}
 
 	/// Creates a new `Store` with the initial state.
-	public nonisolated init(_ state: State) {
+	public init(_ state: State) {
 		self.init(box: StoreBox(state))
 	}
 
-	nonisolated init(
+	/// Creates a new `Store` with a closure to get and set the state.
+	public init(get: @escaping () -> State, set: @escaping (State) -> Void) {
+		self.init(box: StoreBox(get: get, set: set))
+	}
+
+	init(
 		box: StoreBox<State>,
-		di: @escaping @Sendable (StoreDIValues) -> StoreDIValues = { $0 }
+		di: @escaping (StoreDIValues) -> StoreDIValues = { $0 }
 	) {
 		self.box = box
 		_diModifier = di
@@ -193,9 +198,51 @@ public struct Store<State>: Sendable {
 	///   - get: A closure that gets the child state from the parent state.
 	///   - set: A closure that modifies the parent state from the child state.
 	/// - Returns: A new store with its state transformed.
-	public nonisolated func scope<ChildState>(
+	public func scope<ChildState>(
 		get getter: @escaping (State) -> ChildState,
 		set setter: @escaping (inout State, ChildState) -> Void
+	) -> Store<ChildState> {
+		Store<ChildState>(
+			box: StoreBox<ChildState>(parent: box, get: getter, set: setter),
+			di: { [self] in diModifier($0) }
+		)
+	}
+
+	/// Scopes the store to one that exposes child state.
+	///
+	/// This can be useful for deriving new stores to hand to child views in an application. For
+	/// example:
+	///
+	/// ```swift
+	/// class AppFeature {
+	///   var login: Login.State
+	///   // ...
+	/// }
+	///
+	/// // A store that runs the entire application.
+	/// let store = Store(AppFeature())
+	///
+	/// // Construct a login view by scoping the store
+	/// // to one that works with only login domain.
+	/// LoginView(
+	///   store.referanceScope {
+	///     $0.login
+	///   } set: {
+	///     $0.login = $1
+	///   }
+	/// )
+	/// ```
+	///
+	/// Scoping in this fashion allows you to better modularize your application. In this case,
+	/// `LoginView` could be extracted to a module that has no access to `AppFeature`.
+	///
+	/// - Parameters:
+	///   - get: A closure that gets the child state from the parent state.
+	///   - set: A closure that modifies the parent state from the child state.
+	/// - Returns: A new store with its state transformed.
+	public func referenceScope<ChildState>(
+		get getter: @escaping (State) -> ChildState,
+		set setter: @escaping (State, ChildState) -> Void
 	) -> Store<ChildState> {
 		Store<ChildState>(
 			box: StoreBox<ChildState>(parent: box, get: getter, set: setter),
@@ -230,8 +277,50 @@ public struct Store<State>: Sendable {
 	/// - Parameters:
 	///   - keyPath: A writable key path from `State` to `ChildState`.
 	/// - Returns: A new store with its state transformed.
-	public nonisolated func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Store<ChildState> {
-		scope {
+	public func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Store<ChildState> {
+		if let referenceKeyPath = keyPath as? ReferenceWritableKeyPath<State, ChildState> {
+			return referenceScope {
+				$0[keyPath: referenceKeyPath]
+			} set: {
+				$0[keyPath: referenceKeyPath] = $1
+			}
+		}
+		return scope {
+			$0[keyPath: keyPath]
+		} set: {
+			$0[keyPath: keyPath] = $1
+		}
+	}
+
+	/// Scopes the store to one that exposes child state.
+	///
+	/// This can be useful for deriving new stores to hand to child views in an application. For
+	/// example:
+	///
+	/// ```swift
+	/// class AppFeature {
+	///   var login: Login.State
+	///   // ...
+	/// }
+	///
+	/// // A store that runs the entire application.
+	/// let store = Store(AppFeature())
+	///
+	/// // Construct a login view by scoping the store
+	/// // to one that works with only login domain.
+	/// LoginView(
+	///   store.scope(\.login)
+	/// )
+	/// ```
+	///
+	/// Scoping in this fashion allows you to better modularize your application. In this case,
+	/// `LoginView` could be extracted to a module that has no access to `AppFeature`.
+	///
+	/// - Parameters:
+	///   - keyPath: A writable key path from `State` to `ChildState`.
+	/// - Returns: A new store with its state transformed.
+	public func scope<ChildState>(_ keyPath: ReferenceWritableKeyPath<State, ChildState>) -> Store<ChildState> {
+		referenceScope {
 			$0[keyPath: keyPath]
 		} set: {
 			$0[keyPath: keyPath] = $1
@@ -265,8 +354,41 @@ public struct Store<State>: Sendable {
 	/// - Parameters:
 	///   - keyPath: A writable key path from `State` to `ChildState`.
 	/// - Returns: A new store with its state transformed.
-	public nonisolated subscript<ChildState>(
+	public subscript<ChildState>(
 		dynamicMember keyPath: WritableKeyPath<State, ChildState>
+	) -> Store<ChildState> {
+		scope(keyPath)
+	}
+
+	/// Scopes the store to one that exposes child state.
+	///
+	/// This can be useful for deriving new stores to hand to child views in an application. For
+	/// example:
+	///
+	/// ```swift
+	/// class AppFeature {
+	///   var login: Login.State
+	///   // ...
+	/// }
+	///
+	/// // A store that runs the entire application.
+	/// let store = Store(AppFeature())
+	///
+	/// // Construct a login view by scoping the store
+	/// // to one that works with only login domain.
+	/// LoginView(
+	///   store.login
+	/// )
+	/// ```
+	///
+	/// Scoping in this fashion allows you to better modularize your application. In this case,
+	/// `LoginView` could be extracted to a module that has no access to `AppFeature`.
+	///
+	/// - Parameters:
+	///   - keyPath: A writable key path from `State` to `ChildState`.
+	/// - Returns: A new store with its state transformed.
+	public subscript<ChildState>(
+		dynamicMember keyPath: ReferenceWritableKeyPath<State, ChildState>
 	) -> Store<ChildState> {
 		scope(keyPath)
 	}
@@ -276,7 +398,7 @@ public struct Store<State>: Sendable {
 	///  - keyPath: A key path to the value in the store's dependencies.
 	///  - value: The value to inject.
 	/// - Returns: A new store with the injected value.
-	public nonisolated func di<DIValue>(
+	public func di<DIValue>(
 		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
 		_ value: DIValue
 	) -> Store {
@@ -289,7 +411,7 @@ public struct Store<State>: Sendable {
 	/// - Parameters:
 	///  - transform: A closure that transforms the store's dependencies.
 	/// - Returns: A new store with the transformed dependencies.
-	public nonisolated func di(
+	public func di(
 		_ transform: @escaping (StoreDIValues) -> StoreDIValues
 	) -> Store {
 		Store(box: box) { [_diModifier] in
@@ -301,7 +423,7 @@ public struct Store<State>: Sendable {
 	/// - Parameters:
 	///  - transform: A closure that transforms the store's dependencies.
 	/// - Returns: A new store with the transformed dependencies.
-	public nonisolated func transformDI(
+	public func transformDI(
 		_ transform: @escaping (inout StoreDIValues) -> Void
 	) -> Store {
 		di {
@@ -318,11 +440,17 @@ public struct Store<State>: Sendable {
 		return try withDIValues(operation: update)
 	}
 
-	public nonisolated func withDIValues<T>(operation: () throws -> T) rethrows -> T {
+	/// Suspends the store from updating the UI until the block returns.
+	public func update() {
+		box.startUpdate()
+		box.endUpdate()
+	}
+
+	public func withDIValues<T>(operation: () throws -> T) rethrows -> T {
 		try StoreDIValues.$current.withValue(diModifier, operation: operation)
 	}
 
-	public nonisolated func withDIValues<T>(operation: () async throws -> T) async rethrows -> T {
+	public func withDIValues<T>(operation: () async throws -> T) async rethrows -> T {
 		try await StoreDIValues.$current.withValue(diModifier, operation: operation)
 	}
 
@@ -351,7 +479,7 @@ public extension Store where State: MutableCollection {
 	}
 }
 
-public var suspendAllSyncStoreUpdates = true
+let suspendAllSyncStoreUpdates = true
 
 public extension StoreDIValues {
 

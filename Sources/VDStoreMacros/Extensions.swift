@@ -31,7 +31,7 @@ extension FunctionDeclSyntax {
 			return
 		}
 		attributes.insert(
-			.attribute(AttributeSyntax("\(raw: attribute)")),
+			.attribute(AttributeSyntax("@\(raw: attribute)")),
 			at: attributes.startIndex
 		)
 	}

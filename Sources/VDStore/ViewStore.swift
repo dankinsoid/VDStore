@@ -90,6 +90,24 @@ public struct ViewStore<State>: DynamicProperty {
 	}
 }
 
+@available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
+public struct WithViewStore<State, Content: View>: View {
+
+	public let content: (Store<State>) -> Content
+	public var store: Store<State> { $state }
+	@ViewStore private var state: State
+	@Environment(\.storeDIValues) private var transformDI
+
+	public init(_ store: Store<State>, @ViewBuilder content: @escaping (Store<State>) -> Content) {
+		self.content = content
+		_state = ViewStore(store)
+	}
+
+	public var body: some View {
+		content(store.di(transformDI))
+	}
+}
+
 extension StoreDIValues {
 
 	var isViewStore: Bool {

@@ -1,7 +1,14 @@
-@preconcurrency import Combine
+import Combine
 import Foundation
 
-struct StoreBox<Output>: Publisher, Sendable {
+#if canImport(PerceptionCore)
+import PerceptionCore
+#endif
+#if canImport(Observation)
+import Observation
+#endif
+
+struct StoreBox<Output>: Publisher {
 
 	typealias Failure = Never
 
@@ -13,8 +20,8 @@ struct StoreBox<Output>: Publisher, Sendable {
 	var willSet: AnyPublisher<Void, Never> { root.willSetPublisher }
 
 	private let root: StoreRootBoxType
-	private let getter: @Sendable () -> Output
-	private let setter: @Sendable (Output) -> Void
+	private let getter: () -> Output
+	private let setter: (Output) -> Void
 	private let valuePublisher: AnyPublisher<Output, Never>
 
 	init(_ value: Output) {
@@ -40,6 +47,33 @@ struct StoreBox<Output>: Publisher, Sendable {
 		}
 	}
 
+	init<T>(
+		parent: StoreBox<T>,
+		get: @escaping (T) -> Output,
+		set: @escaping (T, Output) -> Void
+	) {
+		let rootBox = StoreRootBoxRef {
+			get(parent.state)
+		} setter: { state in
+			set(parent.state, state)
+		}
+		root = rootBox
+		valuePublisher = rootBox.eraseToAnyPublisher()
+		getter = { rootBox.state }
+		setter = { rootBox.state = $0 }
+	}
+
+	init(
+		get: @escaping () -> Output,
+		set: @escaping (Output) -> Void
+	) {
+		let rootBox = StoreRootBoxRef(getter: get, setter: set)
+		root = rootBox
+		valuePublisher = rootBox.eraseToAnyPublisher()
+		getter = { rootBox.state }
+		setter = { rootBox.state = $0 }
+	}
+
 	func startUpdate() { root.startUpdate() }
 	func endUpdate() { root.endUpdate() }
 	func forceUpdate() { root.forceUpdate() }
@@ -49,7 +83,7 @@ struct StoreBox<Output>: Publisher, Sendable {
 	}
 }
 
-private protocol StoreRootBoxType: Sendable {
+private protocol StoreRootBoxType {
 
 	var willSetPublisher: AnyPublisher<Void, Never> { get }
 	func startUpdate()
@@ -57,12 +91,12 @@ private protocol StoreRootBoxType: Sendable {
 	func forceUpdate()
 }
 
-private final class StoreRootBox<State>: StoreRootBoxType, Publisher, @unchecked Sendable {
+private class StoreRootBox<State>: StoreRootBoxType, Publisher {
 
 	typealias Output = State
 	typealias Failure = Never
 
-	private var _state: State
+	var _state: State
 	var state: State {
 		get {
 			checkStateThread()
@@ -100,11 +134,21 @@ private final class StoreRootBox<State>: StoreRootBoxType, Publisher, @unchecked
 
 	init(_ state: State) {
 		_state = state
+#if canImport(Observation)
 		if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
 			_$observationRegistrar = ObservationRegistrar()
 		} else {
-			_$observationRegistrar = MockObservationRegistrar()
+			#if canImport(PerceptionCore)
+			_$observationRegistrar = PerceptionRegistrar()
+			#else
+		  _$observationRegistrar = MockObservationRegistrar()
+			#endif
 		}
+#elseif canImport(PerceptionCore)
+		_$observationRegistrar = PerceptionRegistrar()
+#else
+		_$observationRegistrar = MockObservationRegistrar()
+#endif
 	}
 
 	func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Output == S.Input {
@@ -169,6 +213,22 @@ private final class StoreRootBox<State>: StoreRootBoxType, Publisher, @unchecked
 	}
 }
 
+private final class StoreRootBoxRef<State>: StoreRootBox<State> {
+
+	private let getter: () -> Output
+	private let setter: (Output) -> Void
+	override var _state: State {
+		get { getter() }
+		set { setter(newValue) }
+	}
+
+	init(getter: @escaping () -> Output, setter: @escaping (Output) -> Void) {
+		self.getter = getter
+		self.setter = setter
+		super.init(getter())
+	}
+}
+
 private protocol ObservationRegistrarProtocol {
 	func access<State>(box: StoreRootBox<State>)
 	func willSet<State>(box: StoreRootBox<State>)
@@ -176,6 +236,7 @@ private protocol ObservationRegistrarProtocol {
 	func withMutation<State, T>(box: StoreRootBox<State>, _ mutation: () throws -> T) rethrows -> T
 }
 
+#if canImport(Observation)
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 extension StoreRootBox: Observable {}
 
@@ -198,6 +259,30 @@ extension ObservationRegistrar: ObservationRegistrarProtocol {
 		try withMutation(of: box, keyPath: \.state, mutation)
 	}
 }
+#endif
+
+#if canImport(PerceptionCore)
+extension StoreRootBox: Perceptible {}
+
+extension PerceptionRegistrar: ObservationRegistrarProtocol {
+
+	fileprivate func access<State>(box: StoreRootBox<State>) {
+		access(box, keyPath: \.state)
+	}
+
+	fileprivate func willSet<Output>(box: StoreRootBox<Output>) {
+		willSet(box, keyPath: \.state)
+	}
+
+	fileprivate func didSet<Output>(box: StoreRootBox<Output>) {
+		didSet(box, keyPath: \.state)
+	}
+
+	fileprivate func withMutation<State, T>(box: StoreRootBox<State>, _ mutation: () throws -> T) rethrows -> T {
+		try withMutation(of: box, keyPath: \.state, mutation)
+	}
+}
+#endif
 
 private struct MockObservationRegistrar: ObservationRegistrarProtocol {
 	func access<State>(box: StoreRootBox<State>) {}
