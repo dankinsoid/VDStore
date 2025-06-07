@@ -15,14 +15,6 @@ public struct StorePublisher<State>: Publisher {
 	}
 
 	/// Returns the resulting sequence of a given key path.
-	public subscript<Value: Equatable>(
-		dynamicMember keyPath: KeyPath<State, Value>
-	) -> StorePublisher<Value> {
-		StorePublisher<Value>(upstream: upstream.map(keyPath).removeDuplicates().eraseToAnyPublisher())
-	}
-
-	/// Returns the resulting sequence of a given key path.
-	@_disfavoredOverload
 	public subscript<Value>(
 		dynamicMember keyPath: KeyPath<State, Value>
 	) -> StorePublisher<Value> {
@@ -40,14 +32,6 @@ public struct StoreAsyncSequence<State>: AsyncSequence {
 	let upstream: AnyPublisher<State, Never>
 
 	/// Returns the resulting sequence of a given key path.
-	public subscript<Value: Equatable>(
-		dynamicMember keyPath: KeyPath<State, Value>
-	) -> StoreAsyncSequence<Value> {
-		StoreAsyncSequence<Value>(upstream: upstream.map(keyPath).removeDuplicates().eraseToAnyPublisher())
-	}
-
-	/// Returns the resulting sequence of a given key path.
-	@_disfavoredOverload
 	public subscript<Value>(
 		dynamicMember keyPath: KeyPath<State, Value>
 	) -> StoreAsyncSequence<Value> {
