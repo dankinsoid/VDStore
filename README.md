@@ -12,6 +12,7 @@ VDStore is compatible with both SwiftUI and UIKit.
 - **State Subscription**: Observe state changes and update your UI in a reactive manner.
 - **Dependencies Injection**: Seamlessly manage dependencies and inject services as needed.
 - **Fragmentation into Scopes**: Efficiently break down and manage complex states by creating focused sub-stores with scoped functionality.
+- **Non-mutating Properties**: Support for class-based states and fine-grained control over which property changes trigger UI updates.
 
 ## Usage
 
@@ -146,6 +147,161 @@ To use a dependency you should use `di` property:
 store.di.someService.someMethod()
 ```
 There is `valueFor` global method that allows you to define default values depending on the environment: live, test or preview.
+```swift
+extension StoreDIValues {
+
+  @StoreDIValue
+  public var someService: SomeService = valueFor(
+	live: SomeService.shared,
+	test: SomeServiceMock()
+)
+```
+
+### Non-mutating Properties
+
+VDStore provides fine-grained control over which property changes trigger store updates using Swift's native value semantics. The mechanism is simple: **only state mutations trigger updates**. Make a substate non-mutating in any way, and updates will only be available when scoping to that specific substate.
+
+#### The Simple Mechanism
+
+There are two main ways to achieve non-mutating substates:
+
+1. **Use a class** - Class properties don't trigger parent updates when modified
+2. **Use `@NonMutatingSet`** - A property wrapper that makes specific struct properties non-mutating
+
+#### Screen-based Architecture
+
+Consider a typical app with multiple screens. You can structure your global state so that updates to one screen don't trigger rebuilds for other screens:
+
+```swift
+struct AppState {
+  @NonMutatingSet var homeScreen: HomeScreenState = HomeScreenState()
+  @NonMutatingSet var profileScreen: ProfileScreenState = ProfileScreenState()
+  @NonMutatingSet var settingsScreen: SettingsScreenState = SettingsScreenState()
+  
+  // Global app data that affects all screens
+  var user: User? = nil
+  var isOnline: Bool = true
+}
+
+struct HomeScreenState {
+  var posts: [Post] = []
+  var isLoading: Bool = false
+  var searchQuery: String = ""
+}
+
+struct ProfileScreenState {
+  var userProfile: UserProfile? = nil
+  var isEditing: Bool = false
+  var avatarImage: UIImage? = nil
+  @NonMutatingSet var recentActivities: [Activity] = []
+}
+
+struct SettingsScreenState {
+  var theme: Theme = .light
+  var notificationsEnabled: Bool = true
+  var selectedLanguage: String = "en"
+}
+```
+
+#### Independent Screen Updates
+
+Each screen gets its own scoped store that only triggers updates for that specific screen:
+
+```swift
+struct HomeView: View {
+  @ViewStore var homeState: HomeScreenState
+  
+  init(_ store: Store<AppState>) {
+    _homeState = ViewStore(store.scope(\.homeScreen))
+  }
+  
+  var body: some View {
+    VStack {
+      if homeState.isLoading {
+        ProgressView()
+      }
+      
+      List(homeState.posts) { post in
+        PostRow(post: post)
+      }
+      
+      Button("Load Posts") {
+        $homeState.loadPosts()
+      }
+    }
+  }
+}
+
+struct ProfileView: View {
+  @ViewStore var profileState: ProfileScreenState
+  
+  init(_ store: Store<AppState>) {
+    _profileState = ViewStore(store.scope(\.profileScreen))
+  }
+  
+  var body: some View {
+    VStack {
+      if let profile = profileState.userProfile {
+        ProfileCard(profile: profile)
+      }
+      
+      Button("Edit Profile") {
+        $profileState.startEditing()
+      }
+    }
+  }
+}
+```
+
+#### How It Works
+
+The magic is in Swift's native value semantics:
+
+```swift
+extension Store<HomeScreenState> {
+  func loadPosts() async {
+    state.isLoading = true  // Only HomeView rebuilds
+    // ... fetch posts
+    state.posts = newPosts  // Only HomeView rebuilds
+    state.isLoading = false // Only HomeView rebuilds
+  }
+}
+
+extension Store<ProfileScreenState> {
+  func startEditing() {
+    state.isEditing = true  // Only ProfileView rebuilds
+  }
+}
+
+extension Store<AppState> {
+  func setUser(_ user: User) {
+    state.user = user  // All views rebuild (global state change)
+  }
+  
+  func updateHomeScreenDirectly() {
+    // This WON'T trigger any updates because homeScreen is non-mutating
+    state.homeScreen.posts.append(newPost)
+    
+    // To trigger updates, you need to scope to the substate:
+    // homeStore.state.posts.append(newPost)  // This WILL trigger updates
+  }
+}
+```
+
+**Key insight**: When a property is non-mutating, changing it doesn't mutate the parent struct, so no updates are triggered at the parent level. Updates only happen when you scope directly to that substate.
+
+#### Shared Dependencies
+
+All screen stores share the same dependency injection context:
+
+```swift
+// All screens can access the same services
+homeStore.di.apiService.fetchPosts()
+profileStore.di.apiService.updateProfile(...)
+settingsStore.di.userDefaults.save(...)
+```
+
+This approach provides optimal performance by ensuring that state changes in one screen don't cause unnecessary re-renders in other screens, while maintaining a unified global state and shared dependency context.
 
 ## Requirements
 
