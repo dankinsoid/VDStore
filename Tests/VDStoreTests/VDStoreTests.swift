@@ -2,31 +2,32 @@ import Combine
 @testable import VDStore
 import XCTest
 
+@MainActor
 final class VDStoreTests: XCTestCase {
 
 	/// Test that initializing a Store with a given state sets the initial state correctly.
-	@MainActor func testInitialState() {
+	func testInitialState() {
 		let initialCounter = Counter(counter: 10)
 		let store = Store(initialCounter)
 		XCTAssertEqual(store.state.counter, 10)
 	}
 
 	/// Test that a state mutation updates the state as expected.
-    @MainActor func testStateMutation() {
+	func testStateMutation() {
 		let store = Store(Counter())
 		store.add()
-
+	
 		XCTAssertEqual(store.state.counter, 1)
 	}
-
+	
 	/// Test dependency injection, ensuring that a service or di is correctly injected into a Store.
 	func testDependencyInjection() {
 		let service: SomeService = MockSomeService()
 		let store = Store(Counter()).di(\.someService, service)
-
+		
 		XCTAssert(store.di.someService === service)
 	}
-
+	
 	/// Test that scoped stores correctly inherit dependencies from their parent.
 	func testScopedStoreInheritsDependencies() {
 		let service: SomeService = MockSomeService()
@@ -35,15 +36,15 @@ final class VDStoreTests: XCTestCase {
 		XCTAssert(parentStore.di.someService === service)
 		XCTAssert(childStore.di.someService === service)
 	}
-
+	
 	/// Test that a Store can use a mock di correctly.
 	func testMockDIValue() {
 		let mockService = MockSomeService()
 		let store = Store(Counter()).di(\.someService, mockService)
-
+		
 		XCTAssert(store.di.someService is MockSomeService)
 	}
-
+	
 	/// Test that state mutations are thread-safe.
 	func testThreadSafety() async {
 		let store = Store(Counter())
@@ -54,7 +55,7 @@ final class VDStoreTests: XCTestCase {
 		}.value
 		XCTAssertEqual(isMainThread, true)
 	}
-
+	
 	func testTasksCancel() async {
 		let store = Store(Counter())
 		let id = "id"
@@ -67,11 +68,11 @@ final class VDStoreTests: XCTestCase {
 			}
 			return 10
 		}
-		.value
+			.value
 		XCTAssertEqual(value, 6)
 	}
-
-    @MainActor func testUpdate() {
+	
+	func testUpdate() {
 		let store = Store(Counter())
 		let publisher = store.publisher
 		var count = 0
@@ -88,9 +89,9 @@ final class VDStoreTests: XCTestCase {
 		XCTAssertEqual(store.state.counter, 10)
 		XCTAssertEqual(count, 2)
 	}
-
+	
 	/// Test that the publisher property of a Store sends updates when the state changes.
-    @MainActor func testAsyncSequenceUpdates() async {
+	func testAsyncSequenceUpdates() async {
 		let initialCounter = Counter(counter: 0)
 		let store = Store(initialCounter)
 		Task {
@@ -102,14 +103,14 @@ final class VDStoreTests: XCTestCase {
 			}
 		}
 	}
-
-	#if swift(>=5.9)
+	
+#if swift(>=5.9)
 	/// Test that the publisher property of a Store sends updates when the state changes.
-    @MainActor func testPublisherUpdates() async {
+	func testPublisherUpdates() async {
 		let initialCounter = Counter(counter: 0)
 		let store = Store(initialCounter)
 		let expectation = expectation(description: "State updated")
-
+		
 		store.publisher.sink { newState in
 			if newState.counter == 1 {
 				expectation.fulfill()
@@ -117,24 +118,24 @@ final class VDStoreTests: XCTestCase {
 			}
 		}
 		.store(in: &store.di.cancellableSet)
-
+		
 		store.add()
 		await fulfillment(of: [expectation], timeout: 0.1)
 	}
-
-    @MainActor func testTasksMacroCancel() async {
+	
+	func testTasksMacroCancel() async {
 		let store = Store(Counter())
 		let value = await store.cancellableTask()
 		XCTAssertEqual(value, 6)
 	}
-
-    @MainActor func testTaskMacroCancelInFlight() async {
+	
+	func testTaskMacroCancelInFlight() async {
 		let store = Store(Counter())
 		let value = await store.cancellableInFlightTask()
 		XCTAssertEqual(value, 6)
 	}
-
-    @MainActor func testNumberOfUpdates() async {
+	
+	func testNumberOfUpdates() async {
 		let store = Store(Counter())
 		let publisher = store.publisher
 		var updatesCount = 0
@@ -162,8 +163,8 @@ final class VDStoreTests: XCTestCase {
 		await fulfillment(of: [expectation], timeout: 0.1)
 		XCTAssertEqual(updatesCount, 2)
 	}
-
-    @MainActor func testOnChange() async {
+	
+	func testOnChange() async {
 		let expectation = expectation(description: "Counter")
 		let store = Store(Counter()).onChange(of: \.counter) { _, _, state in
 			state.counter += 1
@@ -175,8 +176,8 @@ final class VDStoreTests: XCTestCase {
 		await fulfillment(of: [expectation], timeout: 0.1)
 		XCTAssertEqual(store.state.counter, 2)
 	}
-
-    @MainActor func testSyncUpdateInAsyncUpdate() async {
+	
+	func testSyncUpdateInAsyncUpdate() async {
 		let store = Store(Counter())
 		let publisher = store.publisher
 		var updatesCount = 0
@@ -208,8 +209,8 @@ final class VDStoreTests: XCTestCase {
 		await fulfillment(of: [expectation], timeout: 0.1)
 		XCTAssertEqual(updatesCount, 3)
 	}
-
-    @MainActor func testAsyncUpdateInSyncUpdate() async {
+	
+	func testAsyncUpdateInSyncUpdate() async {
 		let store = Store(Counter())
 		let publisher = store.publisher
 		var updatesCount = 0
@@ -241,7 +242,7 @@ final class VDStoreTests: XCTestCase {
 		await fulfillment(of: [expectation], timeout: 0.1)
 		XCTAssertEqual(updatesCount, 2)
 	}
-
+	
 	//    @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 	//    func testObservation() async {
 	//        let store = Store(Counter()).counter
@@ -259,7 +260,316 @@ final class VDStoreTests: XCTestCase {
 	////        store.state += 1
 	//        await fulfillment(of: [expectation], timeout: 0.1)
 	//    }
-	#endif
+#endif
+	
+	// MARK: - Non-mutating Substate Tests
+	
+	/// Test that @NonMutatingSet properties don't trigger parent store updates
+	func testNonMutatingSetDoesNotTriggerParentUpdates() async {
+		let store = Store(AppStateWithNonMutatingSet())
+		var updateCount = 0
+		
+		let expectation = expectation(description: "No parent updates from NonMutatingSet")
+		expectation.isInverted = true
+		
+		store.publisher.sink { _ in
+			updateCount += 1
+			if updateCount > 1 { // Initial state + any unexpected updates
+				expectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		// Modify @NonMutatingSet properties directly - should not trigger parent updates
+		store.state.homeScreen.posts.append("New Post")
+		store.state.profileScreen.userName = "John Doe"
+		store.state.settingsScreen.theme = "dark"
+		
+		await fulfillment(of: [expectation], timeout: 0.1)
+		XCTAssertEqual(updateCount, 1, "Parent store should only emit initial state")
+	}
+	
+	/// Test that scoped stores from @NonMutatingSet properties DO trigger updates
+	func testScopedStoreFromNonMutatingSetTriggersUpdates() async {
+		let store = Store(AppStateWithNonMutatingSet())
+		let homeStore = store.scope(\.homeScreen)
+		var updateCount = 0
+		
+		let expectation = expectation(description: "Scoped store updates")
+		
+		homeStore.publisher.sink { state in
+			updateCount += 1
+			if state.posts.count == 1 {
+				expectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		// This should trigger updates in the scoped store
+		homeStore.addPost("New Post")
+		
+		await fulfillment(of: [expectation], timeout: 0.1)
+		XCTAssertEqual(updateCount, 2, "Scoped store should emit initial state + update")
+		XCTAssertEqual(homeStore.state.posts, ["New Post"])
+	}
+	
+	/// Test that global state changes trigger updates for all subscribers
+	func testGlobalStateChangesTriggersUpdates() async {
+		let store = Store(AppStateWithNonMutatingSet())
+		var parentUpdateCount = 0
+		var homeUpdateCount = 0
+		
+		let parentExpectation = expectation(description: "Parent store updates")
+		let homeExpectation = expectation(description: "Home store updates")
+		
+		let homeStore = store.scope(\.homeScreen)
+		
+		store.publisher.sink { state in
+			parentUpdateCount += 1
+			if state.globalCounter == 1 {
+				parentExpectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		homeStore.publisher.sink { _ in
+			homeUpdateCount += 1
+			if homeUpdateCount == 2 { // Initial + inherited update
+				homeExpectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		// This should trigger updates in both parent and child stores
+		store.updateGlobalCounter()
+		
+		await fulfillment(of: [parentExpectation, homeExpectation], timeout: 0.1)
+		XCTAssertEqual(parentUpdateCount, 2, "Parent should emit initial + update")
+		XCTAssertEqual(homeUpdateCount, 2, "Child should inherit parent updates")
+	}
+	
+	/// Test independent updates between different scoped stores
+	func testIndependentScopedStoreUpdates() async {
+		let store = Store(AppStateWithNonMutatingSet())
+		let homeStore = store.scope(\.homeScreen)
+		let profileStore = store.scope(\.profileScreen)
+		
+		var homeUpdateCount = 0
+		var profileUpdateCount = 0
+		
+		let homeExpectation = expectation(description: "Home store updates")
+		let profileExpectation = expectation(description: "Profile store updates")
+		profileExpectation.isInverted = true
+		
+		homeStore.publisher.sink { state in
+			homeUpdateCount += 1
+			if state.isLoading {
+				homeExpectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		profileStore.publisher.sink { _ in
+			profileUpdateCount += 1
+			if profileUpdateCount > 1 { // Only initial should be emitted
+				profileExpectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		// Update only home store - profile should not be affected
+		homeStore.setLoading(true)
+		
+		await fulfillment(of: [homeExpectation, profileExpectation], timeout: 0.1)
+		XCTAssertEqual(homeUpdateCount, 2, "Home store should update")
+		XCTAssertEqual(profileUpdateCount, 1, "Profile store should not update")
+	}
+	
+	/// Test that @NonMutatingSet preserves value equality
+	func testNonMutatingSetPreservesEquality() {
+		let store = Store(AppStateWithNonMutatingSet())
+		let initialState = store.state
+		
+		// Modify @NonMutatingSet property
+		store.state.homeScreen.posts.append("New Post")
+		
+		// Parent state should still be considered equal for mutation detection
+		// but the actual content has changed
+		XCTAssertEqual(store.state.homeScreen.posts, ["New Post"])
+		XCTAssertNotEqual(store.state.homeScreen, HomeScreenState()) // Content changed
+		
+		// Global properties should remain unchanged
+		XCTAssertEqual(store.state.globalCounter, initialState.globalCounter)
+		XCTAssertEqual(store.state.isOnline, initialState.isOnline)
+	}
+	
+	/// Test shared dependency injection across scoped stores
+	func testSharedDependencyInjectionAcrossScopes() {
+		let mockService = MockSomeService()
+		let store = Store(AppStateWithNonMutatingSet()).di(\.someService, mockService)
+		
+		let homeStore = store.homeScreen
+		let profileStore = store.profileScreen
+		let settingsStore = store.settingsScreen
+		
+		// All scoped stores should share the same dependency
+		XCTAssert(store.di.someService === mockService)
+		XCTAssert(homeStore.di.someService === mockService)
+		XCTAssert(profileStore.di.someService === mockService)
+		XCTAssert(settingsStore.di.someService === mockService)
+		
+		// Verify they're all the same instance
+		XCTAssert(homeStore.di.someService === profileStore.di.someService)
+		XCTAssert(profileStore.di.someService === settingsStore.di.someService)
+	}
+	
+	// MARK: - Class-based Non-mutating State Tests
+	
+	/// Test that class-based states don't trigger parent store updates
+	func testClassBasedStatesDoNotTriggerParentUpdates() async {
+		let store = Store(AppClassState())
+		var updateCount = 0
+		
+		let expectation = expectation(description: "No parent updates from class mutations")
+		expectation.isInverted = true
+		
+		store.publisher.sink { _ in
+			updateCount += 1
+			if updateCount > 1 { // Initial state + any unexpected updates
+				expectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		// Modify class properties directly - should not trigger parent updates
+		store.state.homeScreen.posts.append("New Post")
+		store.state.profileScreen.userName = "John Doe"
+		store.state.settingsScreen.theme = "dark"
+		
+		await fulfillment(of: [expectation], timeout: 0.1)
+		XCTAssertEqual(updateCount, 1, "Parent store should only emit initial state")
+	}
+	
+	/// Test that scoped stores from class properties DO trigger updates
+	func testScopedStoreFromClassTriggersUpdates() async {
+		let store = Store(AppClassState())
+		let homeStore = store.referenceScope(get: { $0.homeScreen }, set: { parent, child in parent.homeScreen = child })
+		var updateCount = 0
+		
+		let expectation = expectation(description: "Scoped store updates")
+		
+		homeStore.publisher.sink { state in
+			updateCount += 1
+			if state.posts.count == 1 {
+				expectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		// This should trigger updates in the scoped store
+		homeStore.addPost("New Post")
+		
+		await fulfillment(of: [expectation], timeout: 0.1)
+		XCTAssertEqual(updateCount, 2, "Scoped store should emit initial state + update")
+		XCTAssertEqual(homeStore.state.posts, ["New Post"])
+	}
+	
+	/// Test independent updates between different class-based scoped stores
+	func testIndependentClassBasedScopedStoreUpdates() async {
+		let store = Store(AppClassState())
+		let homeStore = store.scope(\.homeScreen)
+		let profileStore = store.scope(\.profileScreen)
+		
+		var homeUpdateCount = 0
+		var profileUpdateCount = 0
+		
+		let homeExpectation = expectation(description: "Home store updates")
+		let profileExpectation = expectation(description: "Profile store updates")
+		profileExpectation.isInverted = true
+		
+		homeStore.publisher.sink { state in
+			homeUpdateCount += 1
+			if state.isLoading {
+				homeExpectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		profileStore.publisher.sink { _ in
+			profileUpdateCount += 1
+			if profileUpdateCount > 1 { // Only initial should be emitted
+				profileExpectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		// Update only home store - profile should not be affected
+		homeStore.setLoading(true)
+		
+		await fulfillment(of: [homeExpectation, profileExpectation], timeout: 0.1)
+		XCTAssertEqual(homeUpdateCount, 2, "Home store should update")
+		XCTAssertEqual(profileUpdateCount, 1, "Profile store should not update")
+	}
+
+	/// Test direct class mutation vs scoped mutation behavior
+	func testDirectClassMutationVsScopedMutation() async {
+		let store = Store(AppClassState())
+		let homeStore = store.homeScreen
+		
+		var parentUpdateCount = 0
+		var homeUpdateCount = 0
+		
+		let parentExpectation = expectation(description: "Parent updates")
+		parentExpectation.isInverted = true
+		
+		let homeExpectation = expectation(description: "Home updates")
+		
+		store.publisher.sink { _ in
+			parentUpdateCount += 1
+			if parentUpdateCount > 1 {
+				parentExpectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		homeStore.publisher.sink { state in
+			homeUpdateCount += 1
+			if state.posts.count == 2 {
+				homeExpectation.fulfill()
+			}
+		}
+		.store(in: &store.di.cancellableSet)
+		
+		// Direct mutation on parent - should NOT trigger parent updates
+		store.state.homeScreen.posts.append("Direct mutation")
+		
+		// Scoped mutation - should trigger scoped store updates
+		homeStore.addPost("Scoped mutation")
+		
+		await fulfillment(of: [parentExpectation, homeExpectation], timeout: 0.1)
+		XCTAssertEqual(parentUpdateCount, 1, "Parent should only emit initial")
+		XCTAssertEqual(homeUpdateCount, 2, "Home should emit initial + update")
+		XCTAssertEqual(homeStore.state.posts, ["Direct mutation", "Scoped mutation"])
+	}
+	
+	func testEmptyUpdateFunctionTriggersUpdate() async {
+		let store = Store(AppClassState())
+		let publisher = store.publisher
+		var updatesCount = 0
+		let expectation = expectation(description: "Counter")
+		publisher
+			.sink { _ in
+				updatesCount += 1
+				if updatesCount > 1 {
+					expectation.fulfill()
+					store.di.cancellableSet = []
+				}
+			}
+			.store(in: &store.di.cancellableSet)
+		store.update()
+		await fulfillment(of: [expectation], timeout: 0.1)
+		XCTAssertEqual(updatesCount, 2) // Initial state + empty update
+	}
 }
 
 @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
@@ -346,5 +656,99 @@ extension StoreDIValues {
 	var someService: SomeService {
 		get { get(\.someService, or: MockSomeService()) }
 		set { set(\.someService, newValue) }
+	}
+}
+
+// MARK: - Non-mutating Substate Test Models
+
+struct AppStateWithNonMutatingSet: Equatable {
+	var globalCounter: Int = 0
+	var isOnline: Bool = true
+	
+	@NonMutatingSet var homeScreen: HomeScreenState = HomeScreenState()
+	@NonMutatingSet var profileScreen: ProfileScreenState = ProfileScreenState()
+	@NonMutatingSet var settingsScreen: SettingsScreenState = SettingsScreenState()
+}
+
+struct HomeScreenState: Equatable {
+	var posts: [String] = []
+	var isLoading: Bool = false
+	var searchQuery: String = ""
+}
+
+struct ProfileScreenState: Equatable {
+	var userName: String = ""
+	var isEditing: Bool = false
+	var avatarUrl: String? = nil
+}
+
+struct SettingsScreenState: Equatable {
+	var theme: String = "light"
+	var notificationsEnabled: Bool = true
+	var selectedLanguage: String = "en"
+}
+
+class AppClassState {
+	var globalCounter: Int = 0
+	var isOnline: Bool = true
+	
+	var homeScreen = HomeScreenState()
+	var profileScreen = ProfileScreenState()
+	var settingsScreen = SettingsScreenState()
+}
+
+// MARK: - Store Extensions for Testing
+
+extension Store<AppStateWithNonMutatingSet> {
+	func updateGlobalCounter() {
+		state.globalCounter += 1
+	}
+	
+	func updateOnlineStatus(_ isOnline: Bool) {
+		state.isOnline = isOnline
+	}
+}
+
+extension Store<HomeScreenState> {
+	func addPost(_ post: String) {
+		state.posts.append(post)
+	}
+	
+	func setLoading(_ isLoading: Bool) {
+		state.isLoading = isLoading
+	}
+	
+	func updateSearchQuery(_ query: String) {
+		state.searchQuery = query
+	}
+}
+
+extension Store<ProfileScreenState> {
+	func updateUserName(_ name: String) {
+		state.userName = name
+	}
+	
+	func toggleEditing() {
+		state.isEditing.toggle()
+	}
+}
+
+extension Store<SettingsScreenState> {
+	func updateTheme(_ theme: String) {
+		state.theme = theme
+	}
+	
+	func toggleNotifications() {
+		state.notificationsEnabled.toggle()
+	}
+}
+
+extension Store<AppClassState> {
+	func updateGlobalCounter() {
+		state.globalCounter += 1
+	}
+	
+	func updateOnlineStatus(_ isOnline: Bool) {
+		state.isOnline = isOnline
 	}
 }

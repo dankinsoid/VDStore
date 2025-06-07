@@ -58,7 +58,9 @@ struct StoreBox<Output>: Publisher {
 			set(parent.state, state)
 		}
 		root = rootBox
-		valuePublisher = rootBox.eraseToAnyPublisher()
+		valuePublisher = rootBox
+			.merge(with: parent.valuePublisher.dropFirst().map(get))
+			.eraseToAnyPublisher()
 		getter = { rootBox.state }
 		setter = { rootBox.state = $0 }
 	}

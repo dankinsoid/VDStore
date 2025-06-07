@@ -212,7 +212,7 @@ struct HomeView: View {
   @ViewStore var homeState: HomeScreenState
   
   init(_ store: Store<AppState>) {
-    _homeState = ViewStore(store.scope(\.homeScreen))
+    _homeState = ViewStore(store.homeScreen)
   }
   
   var body: some View {
@@ -236,7 +236,7 @@ struct ProfileView: View {
   @ViewStore var profileState: ProfileScreenState
   
   init(_ store: Store<AppState>) {
-    _profileState = ViewStore(store.scope(\.profileScreen))
+    _profileState = ViewStore(store.profileScreen)
   }
   
   var body: some View {
@@ -302,6 +302,43 @@ settingsStore.di.userDefaults.save(...)
 ```
 
 This approach provides optimal performance by ensuring that state changes in one screen don't cause unnecessary re-renders in other screens, while maintaining a unified global state and shared dependency context.
+
+#### Manual Update Control
+
+For ultimate control over when updates are triggered, you can use the `update()` methods:
+
+```swift
+extension Store<AppState> {
+  func performBatchOperations() {
+    // Multiple changes without triggering updates
+    state.homeScreen.posts.append("Post 1")
+    state.homeScreen.posts.append("Post 2") 
+    state.profileScreen.userName = "John"
+    
+    // Manually trigger a single update for all changes
+    update()
+  }
+}
+```
+
+You can also use classes exclusively for your state and trigger all updates manually, giving you complete control:
+
+```swift
+class AppState {
+  var counter: Int = 0
+  var data: [String] = []
+}
+
+extension Store<AppState> {
+  func incrementAndAddData() {
+    // These changes won't trigger any updates
+    state.counter += 1
+    state.data.append("New item")
+    
+    // Only trigger update when you want it
+    update()
+  }
+}
 
 ## Requirements
 
