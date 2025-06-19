@@ -1,186 +1,182 @@
 import Combine
 import Foundation
 
-#if canImport(PerceptionCore)
-import PerceptionCore
-#endif
-#if canImport(Observation)
-import Observation
-#endif
-
 struct StoreBox<Output>: Publisher {
 
 	typealias Failure = Never
 
 	var state: Output {
-		get { getter() }
-		nonmutating set { setter(newValue) }
+		_read { yield ref.state }
+		nonmutating _modify { yield &ref.state }
 	}
 
-	var willSet: AnyPublisher<Void, Never> { root.willSetPublisher }
-
-	private let root: StoreRootBoxType
-	private let getter: () -> Output
-	private let setter: (Output) -> Void
-	private let valuePublisher: AnyPublisher<Output, Never>
+	let root: StoreRootBoxType
+	private let ref: any StateRef<Output>
+	let valuePublisher: AnyPublisher<Output, Never>
 
 	init(_ value: Output) {
 		let rootBox = StoreRootBox(value)
 		root = rootBox
-		valuePublisher = rootBox.eraseToAnyPublisher()
-		getter = { rootBox.state }
-		setter = { rootBox.state = $0 }
+		valuePublisher = rootBox
+			.publisher
+			.map { rootBox._state }
+			.eraseToAnyPublisher()
+		ref = rootBox
 	}
 
 	init<T>(
 		parent: StoreBox<T>,
-		get: @escaping (T) -> Output,
-		set: @escaping (inout T, Output) -> Void
+		keyPath: WritableKeyPath<T, Output>
 	) {
 		root = parent.root
-		valuePublisher = parent.valuePublisher.map(get).eraseToAnyPublisher()
-		getter = { get(parent.getter()) }
-		setter = {
-			var state = parent.getter()
-			set(&state, $0)
-			parent.setter(state)
-		}
+		let ref = KeyPathRef(base: parent.ref, keyPath: keyPath)
+		valuePublisher = parent.valuePublisher.map { _ in ref.state } .eraseToAnyPublisher()
+		self.ref = ref
 	}
 
-	init<T>(
-		parent: StoreBox<T>,
-		get: @escaping (T) -> Output,
-		set: @escaping (T, Output) -> Void
-	) {
-		let rootBox = StoreRootBoxRef {
-			get(parent.state)
-		} setter: { state in
-			set(parent.state, state)
-		}
-		root = rootBox
-		valuePublisher = rootBox
-			.merge(with: parent.valuePublisher.dropFirst().map(get))
-			.eraseToAnyPublisher()
-		getter = { rootBox.state }
-		setter = { rootBox.state = $0 }
-	}
-
-	init(
-		get: @escaping () -> Output,
-		set: @escaping (Output) -> Void
-	) {
-		let rootBox = StoreRootBoxRef(getter: get, setter: set)
-		root = rootBox
-		valuePublisher = rootBox.eraseToAnyPublisher()
-		getter = { rootBox.state }
-		setter = { rootBox.state = $0 }
-	}
-
-	func startUpdate() { root.startUpdate() }
-	func endUpdate() { root.endUpdate() }
-	func forceUpdate() { root.forceUpdate() }
+//	init(
+//		get: @escaping () -> Output,
+//		set: @escaping (Output) -> Void
+//	) {
+//		let rootBox = StoreRootBoxRef(getter: get, setter: set)
+//		root = rootBox
+//		valuePublisher = rootBox.eraseToAnyPublisher()
+//		ref = rootBox
+//	}
 
 	func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Output == S.Input {
 		valuePublisher.receive(subscriber: subscriber)
 	}
 }
 
-private protocol StoreRootBoxType {
+protocol StoreRootBoxType {
 
-	var willSetPublisher: AnyPublisher<Void, Never> { get }
-	func startUpdate()
-	func endUpdate()
-	func forceUpdate()
+	var publisher: StoreUpdatesPublisher { get }
 }
 
-private class StoreRootBox<State>: StoreRootBoxType, Publisher {
+protocol StateRef<State> {
 
-	typealias Output = State
-	typealias Failure = Never
+	associatedtype State
+	var state: State { get nonmutating set }
+}
 
-	var _state: State
-	var state: State {
-		get {
-			checkStateThread()
-			_$observationRegistrar.access(box: self)
-			return _state
-		}
-		set {
-			if updatesCounter == 0 {
-				if suspendAllSyncStoreUpdates {
-					if asyncUpdatesCounter == 0 {
-						suspendSyncUpdates()
-					}
-				} else {
-					sendWillSet()
-				}
-			}
+final class StateBox<State>: StateRef {
 
-			_state = newValue
-
-			if updatesCounter == 0, asyncUpdatesCounter == 0 {
-				sendDidSet()
-			}
-		}
-	}
-
-	var willSetPublisher: AnyPublisher<Void, Never> {
-		willSetSubject.eraseToAnyPublisher()
-	}
-
-	private var updatesCounter = 0
-	private var asyncUpdatesCounter = 0
-	private let willSetSubject = PassthroughSubject<Void, Never>()
-	private let didSetSubject = PassthroughSubject<Void, Never>()
-	private let _$observationRegistrar: ObservationRegistrarProtocol
+	var state: State
 
 	init(_ state: State) {
-		_state = state
-#if canImport(Observation)
-		if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
-			_$observationRegistrar = ObservationRegistrar()
-		} else {
-			#if canImport(PerceptionCore)
-			_$observationRegistrar = PerceptionRegistrar()
-			#else
-		  _$observationRegistrar = MockObservationRegistrar()
-			#endif
-		}
-#elseif canImport(PerceptionCore)
-		_$observationRegistrar = PerceptionRegistrar()
-#else
-		_$observationRegistrar = MockObservationRegistrar()
-#endif
+		self.state = state
 	}
+}
+
+final class KeyPathRef<Root, State>: StateRef {
+
+	var state: State {
+		_read { yield base.state[keyPath: keyPath] }
+		_modify {
+			yield &base.state[keyPath: keyPath]
+		}
+	}
+	let base: any StateRef<Root>
+	let keyPath: WritableKeyPath<Root, State>
+	
+	init(base: any StateRef<Root>, keyPath: WritableKeyPath<Root, State>) {
+		self.base = base
+		self.keyPath = keyPath
+	}
+}
+
+extension StoreRootBoxType where Self: Publisher, Failure == Never {
+
+	var valuePublisher: AnyPublisher<Void, Never> {
+		map { _ in () }.eraseToAnyPublisher()
+	}
+}
+
+private protocol ScopPublisherType: AnyObject {
+
+	func willSet()
+	func didSet(force: Bool)
+}
+
+private final class ScopePublisher<Output>: ScopPublisherType {
+
+	typealias Failure = Never
+
+	let getter: () -> Output
+	private var updates: [UUID: AccessList.Context] = [:]
+	let publisher = StoreUpdatesPublisher()
+
+	init(
+		getter: @escaping () -> Output
+	) {
+		self.getter = getter
+	}
+
+	func willSet() {
+		
+	}
+
+	func didSet(force: Bool) {
+		
+	}
+}
+
+final class StoreUpdatesPublisher: Publisher {
+
+	typealias Failure = Never
+	typealias Output = Void
+	private var children: [ObjectIdentifier: ScopPublisherType] = [:]
+
+	@inline(__always)
+	func willGet() {
+		checkStateThread()
+	}
+
+	@inline(__always)
+	func willSet() {
+		if needSendUpdate, asyncUpdatesCounter == 0 {
+			suspendSyncUpdates()
+		}
+	}
+
+	@inline(__always)
+	func didSet() {
+		if needSendUpdate, asyncUpdatesCounter == 0 {
+			sendDidSet()
+		}
+	}
+
+	var force = false
+	var needSendUpdate = true
+	private var asyncUpdatesCounter = 0
+	private let didSetSubject = PassthroughSubject<Void, Never>()
 
 	func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Output == S.Input {
 		didSetSubject
-			.compactMap { [weak self] in self?._state }
-			.prepend(_state)
+			.prepend(())
 			.receive(subscriber: subscriber)
 	}
 
-	func startUpdate() {
-		if updatesCounter == 0, asyncUpdatesCounter == 0 {
-			sendWillSet()
-		}
-		updatesCounter &+= 1
-	}
-
-	func endUpdate() {
-		updatesCounter &-= 1
-		guard updatesCounter == 0 else { return }
+	func sendUpdate() {
+		force = true
+		guard asyncUpdatesCounter <= 0 else { return }
+		sendWillSet()
 		sendDidSet()
-
-		if asyncUpdatesCounter > 0 {
-			sendWillSet()
-		}
 	}
 
-	func forceUpdate() {
-		guard updatesCounter > 0 || asyncUpdatesCounter > 0 else { return }
+	func sendUpdateIfInsideUpdateBatch() {
+		guard asyncUpdatesCounter > 0 else { return }
 		sendDidSet()
 		sendWillSet()
+	}
+
+	fileprivate func add(child: ScopPublisherType) -> AnyCancellable {
+		let id = ObjectIdentifier(child)
+		children[id] = child
+		return AnyCancellable { [weak self] in
+			self?.children[id] = nil
+		}
 	}
 
 	private func suspendSyncUpdates() {
@@ -205,93 +201,39 @@ private class StoreRootBox<State>: StoreRootBoxType, Publisher {
 	}
 
 	private func sendWillSet() {
-		willSetSubject.send()
-		_$observationRegistrar.willSet(box: self)
+		for (_, child) in children {
+			child.willSet()
+		}
 	}
 
 	private func sendDidSet() {
 		didSetSubject.send()
-		_$observationRegistrar.didSet(box: self)
+		for (_, child) in children {
+			child.didSet(force: force)
+		}
+		force = false
 	}
 }
 
-private final class StoreRootBoxRef<State>: StoreRootBox<State> {
+private class StoreRootBox<State>: StoreRootBoxType, StateRef {
 
-	private let getter: () -> Output
-	private let setter: (Output) -> Void
-	override var _state: State {
-		get { getter() }
-		set { setter(newValue) }
+	var _state: State
+	let publisher = StoreUpdatesPublisher()
+
+	var state: State {
+		get {
+			publisher.willGet()
+			return _state
+		}
+		set {
+			publisher.willSet()
+			defer { publisher.didSet() }
+			_state = newValue
+		}
 	}
 
-	init(getter: @escaping () -> Output, setter: @escaping (Output) -> Void) {
-		self.getter = getter
-		self.setter = setter
-		super.init(getter())
-	}
-}
-
-private protocol ObservationRegistrarProtocol {
-	func access<State>(box: StoreRootBox<State>)
-	func willSet<State>(box: StoreRootBox<State>)
-	func didSet<State>(box: StoreRootBox<State>)
-	func withMutation<State, T>(box: StoreRootBox<State>, _ mutation: () throws -> T) rethrows -> T
-}
-
-#if canImport(Observation)
-@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
-extension StoreRootBox: Observable {}
-
-@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
-extension ObservationRegistrar: ObservationRegistrarProtocol {
-
-	fileprivate func access<State>(box: StoreRootBox<State>) {
-		access(box, keyPath: \.state)
-	}
-
-	fileprivate func willSet<Output>(box: StoreRootBox<Output>) {
-		willSet(box, keyPath: \.state)
-	}
-
-	fileprivate func didSet<Output>(box: StoreRootBox<Output>) {
-		didSet(box, keyPath: \.state)
-	}
-
-	fileprivate func withMutation<State, T>(box: StoreRootBox<State>, _ mutation: () throws -> T) rethrows -> T {
-		try withMutation(of: box, keyPath: \.state, mutation)
-	}
-}
-#endif
-
-#if canImport(PerceptionCore)
-extension StoreRootBox: Perceptible {}
-
-extension PerceptionRegistrar: ObservationRegistrarProtocol {
-
-	fileprivate func access<State>(box: StoreRootBox<State>) {
-		access(box, keyPath: \.state)
-	}
-
-	fileprivate func willSet<Output>(box: StoreRootBox<Output>) {
-		willSet(box, keyPath: \.state)
-	}
-
-	fileprivate func didSet<Output>(box: StoreRootBox<Output>) {
-		didSet(box, keyPath: \.state)
-	}
-
-	fileprivate func withMutation<State, T>(box: StoreRootBox<State>, _ mutation: () throws -> T) rethrows -> T {
-		try withMutation(of: box, keyPath: \.state, mutation)
-	}
-}
-#endif
-
-private struct MockObservationRegistrar: ObservationRegistrarProtocol {
-	func access<State>(box: StoreRootBox<State>) {}
-	func willSet<Output>(box: StoreRootBox<Output>) {}
-	func didSet<Output>(box: StoreRootBox<Output>) {}
-	func withMutation<State, T>(box: StoreRootBox<State>, _ mutation: () throws -> T) rethrows -> T {
-		try mutation()
+	init(_ state: State) {
+		_state = state
 	}
 }
 

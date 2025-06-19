@@ -81,7 +81,7 @@ public struct ViewStore<State>: DynamicProperty {
 
 		let store: Store<State>
 		var objectWillChange: AnyPublisher<Void, Never> {
-			store.willSet
+			store.publisher.dropFirst().map { _ in () }.eraseToAnyPublisher()
 		}
 
 		init(store: Store<State>) {

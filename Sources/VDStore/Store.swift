@@ -89,9 +89,9 @@ import SwiftUI
 public struct Store<State> {
 
 	/// The state of the store.
-	@MainActor public var state: State {
-		get { box.state }
-		nonmutating set { box.state = newValue }
+	public var state: State {
+		_read { yield box.state }
+		nonmutating _modify { yield &box.state }
 	}
 
 	/// Injected dependencies.
@@ -122,11 +122,6 @@ public struct Store<State> {
 		StoreAsyncSequence(upstream: withDI(box))
 	}
 
-	/// The publisher that emits before the state is going to be changed. Required by `SwiftUI`.
-	nonisolated var willSet: AnyPublisher<Void, Never> {
-		withDI(box.willSet)
-	}
-
 	private nonisolated let box: StoreBox<State>
 	private nonisolated let _diModifier: (StoreDIValues) -> StoreDIValues
 	private nonisolated var diModifier: (StoreDIValues) -> StoreDIValues {
@@ -154,9 +149,9 @@ public struct Store<State> {
 	}
 
 	/// Creates a new `Store` with a closure to get and set the state.
-	public init(get: @escaping () -> State, set: @escaping (State) -> Void) {
-		self.init(box: StoreBox(get: get, set: set))
-	}
+//	public init(get: @escaping () -> State, set: @escaping (State) -> Void) {
+//		self.init(box: StoreBox(get: get, set: set))
+//	}
 
 	init(
 		box: StoreBox<State>,
@@ -198,68 +193,15 @@ public struct Store<State> {
 	///   - get: A closure that gets the child state from the parent state.
 	///   - set: A closure that modifies the parent state from the child state.
 	/// - Returns: A new store with its state transformed.
-	public func scope<ChildState>(
-		get getter: @escaping (State) -> ChildState,
-		set setter: @escaping (inout State, ChildState) -> Void
-	) -> Store<ChildState> {
-		Store<ChildState>(
-			box: StoreBox<ChildState>(parent: box, get: getter, set: setter),
-			di: { [self] in diModifier($0) }
-		)
-	}
-
-	/// Scopes the store to one that exposes child state for reference types.
-	///
-	/// Use this method when working with class-based (reference type) states to enable
-	/// non-mutating property changes without triggering store updates. This is particularly
-	/// useful when you want to modify properties of a class state without causing
-	/// unnecessary view rebuilds in SwiftUI.
-	///
-	/// This can be useful for deriving new stores to hand to child views in an application. For
-	/// example:
-	///
-	/// ```swift
-	/// class AppFeature {
-	///   var login: Login.State
-	///   // ...
-	/// }
-	///
-	/// // A store that runs the entire application.
-	/// let store = Store(AppFeature())
-	///
-	/// // Construct a login view by scoping the store
-	/// // to one that works with only login domain.
-	/// LoginView(
-	///   store.referenceScope {
-	///     $0.login
-	///   } set: {
-	///     $0.login = $1
-	///   }
-	/// )
-	/// ```
-	///
-	/// Scoping in this fashion allows you to better modularize your application. In this case,
-	/// `LoginView` could be extracted to a module that has no access to `AppFeature`.
-	///
-	/// ## Non-mutating Updates
-	///
-	/// When the parent state is a class, changes to the child state properties won't trigger
-	/// store updates unless the child state itself is a struct. This enables fine-grained
-	/// control over which property changes should cause UI updates.
-	///
-	/// - Parameters:
-	///   - get: A closure that gets the child state from the parent state.
-	///   - set: A closure that modifies the parent state from the child state.
-	/// - Returns: A new store with its state transformed.
-	public func referenceScope<ChildState>(
-		get getter: @escaping (State) -> ChildState,
-		set setter: @escaping (State, ChildState) -> Void
-	) -> Store<ChildState> {
-		Store<ChildState>(
-			box: StoreBox<ChildState>(parent: box, get: getter, set: setter),
-			di: { [self] in diModifier($0) }
-		)
-	}
+//	public func scope<ChildState>(
+//		get getter: @escaping (State) -> ChildState,
+//		set setter: @escaping (inout State, ChildState) -> Void
+//	) -> Store<ChildState> {
+//		Store<ChildState>(
+//			box: StoreBox<ChildState>(parent: box, get: getter, set: setter),
+//			di: { [self] in diModifier($0) }
+//		)
+//	}
 
 	/// Scopes the store to one that exposes child state.
 	///
@@ -289,63 +231,10 @@ public struct Store<State> {
 	///   - keyPath: A writable key path from `State` to `ChildState`.
 	/// - Returns: A new store with its state transformed.
 	public func scope<ChildState>(_ keyPath: WritableKeyPath<State, ChildState>) -> Store<ChildState> {
-		if let referenceKeyPath = keyPath as? ReferenceWritableKeyPath<State, ChildState> {
-			return referenceScope {
-				$0[keyPath: referenceKeyPath]
-			} set: {
-				$0[keyPath: referenceKeyPath] = $1
-			}
-		}
-		return scope {
-			$0[keyPath: keyPath]
-		} set: {
-			$0[keyPath: keyPath] = $1
-		}
-	}
-
-	/// Scopes the store to one that exposes child state using a reference key path.
-	///
-	/// This method automatically uses reference-based scoping when working with class properties,
-	/// enabling non-mutating property changes without triggering store updates. This is ideal
-	/// for class-based states where you want fine-grained control over update notifications.
-	///
-	/// This can be useful for deriving new stores to hand to child views in an application. For
-	/// example:
-	///
-	/// ```swift
-	/// class AppFeature {
-	///   var login: Login.State
-	///   // ...
-	/// }
-	///
-	/// // A store that runs the entire application.
-	/// let store = Store(AppFeature())
-	///
-	/// // Construct a login view by scoping the store
-	/// // to one that works with only login domain.
-	/// LoginView(
-	///   store.scope(\.login)
-	/// )
-	/// ```
-	///
-	/// Scoping in this fashion allows you to better modularize your application. In this case,
-	/// `LoginView` could be extracted to a module that has no access to `AppFeature`.
-	///
-	/// ## Non-mutating Updates
-	///
-	/// When using a `ReferenceWritableKeyPath`, changes to the child state properties won't
-	/// trigger store updates unless the child state itself is a struct. This provides optimal
-	/// performance for class-based state management.
-	///
-	/// - Parameters:
-	///   - keyPath: A reference writable key path from `State` to `ChildState`.
-	/// - Returns: A new store with its state transformed.
-	public func scope<ChildState>(_ keyPath: ReferenceWritableKeyPath<State, ChildState>) -> Store<ChildState> {
-		referenceScope {
-			$0[keyPath: keyPath]
-		} set: {
-			$0[keyPath: keyPath] = $1
-		}
+		Store<ChildState>(
+			box: StoreBox<ChildState>(parent: box, keyPath: keyPath),
+			di: { [self] in diModifier($0) }
+		)
 	}
 
 	/// Scopes the store to one that exposes child state.
@@ -454,17 +343,19 @@ public struct Store<State> {
 		}
 	}
 
-	/// Suspends the store from updating the UI until the block returns.
-	public func update<T>(_ update: @MainActor () throws -> T) rethrows -> T {
-		box.startUpdate()
-		defer { box.endUpdate() }
+	/// Executes the given update operation without sending updates of the state changes.
+	public func silently<T>(_ update: @MainActor () throws -> T) rethrows -> T {
+		let currentNeedSendUpdate = box.root.publisher.needSendUpdate
+		box.root.publisher.needSendUpdate = false
+		defer {
+			box.root.publisher.needSendUpdate = currentNeedSendUpdate
+		}
 		return try withDIValues(operation: update)
 	}
 
-	/// Suspends the store from updating the UI until the block returns.
+	/// Sends an update.
 	public func update() {
-		box.startUpdate()
-		box.endUpdate()
+		box.root.publisher.sendUpdate()
 	}
 
 	public func withDIValues<T>(operation: () throws -> T) rethrows -> T {
@@ -475,32 +366,21 @@ public struct Store<State> {
 		try await StoreDIValues.$current.withValue(diModifier, operation: operation)
 	}
 
-	func forceUpdate() {
-		box.forceUpdate()
+	func sendUpdateIfInsideUpdateBatch() {
+		box.root.publisher.sendUpdateIfInsideUpdateBatch()
+	}
+
+	private func changeState(_ operation: @MainActor (inout State) -> Void) {
+		operation(&box.state)
 	}
 }
 
-public extension Store where State: MutableCollection {
-
-	subscript(index: State.Index, or defaultValue: State.Element) -> Store<State.Element> {
-		scope(
-			get: { state in
-				guard state.indices.contains(index) else {
-					return defaultValue
-				}
-				return state[index]
-			},
-			set: { state, newValue in
-				guard state.indices.contains(index) else {
-					return
-				}
-				state[index] = newValue
-			}
-		)
-	}
-}
-
-public var suspendAllSyncStoreUpdates = true
+//public extension Store where State: MutableCollection, State.Element: Hashable, State.Index: Hashable {
+//
+//	subscript(index: State.Index, or defaultValue: State.Element) -> Store<State.Element> {
+//		scope(\State[safe: index, or: defaultValue])
+//	}
+//}
 
 public extension StoreDIValues {
 

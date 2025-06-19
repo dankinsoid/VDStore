@@ -52,9 +52,7 @@ public extension Store.Action {
 		action: @escaping (Store<State>) -> @MainActor (Args) -> Res
 	) {
 		self.init(id: id) { store, args in
-			store.update {
-				action(store)(args)
-			}
+			action(store)(args)
 		}
 	}
 
@@ -87,10 +85,8 @@ public extension Store.Action {
 		action: @escaping (Store<State>) -> @MainActor (Args) throws -> T
 	) where Res == Result<T, Error> {
 		self.init(id: id) { store, args in
-			store.update {
-				Result {
-					try action(store)(args)
-				}
+			Result {
+				try action(store)(args)
 			}
 		}
 	}

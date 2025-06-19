@@ -166,7 +166,7 @@ VDStore provides fine-grained control over which property changes trigger store 
 There are two main ways to achieve non-mutating substates:
 
 1. **Use a class** - Class properties don't trigger parent updates when modified
-2. **Use `@NonMutatingSet`** - A property wrapper that makes specific struct properties non-mutating
+2. **Use `@Independent`** - A property wrapper that makes specific struct properties non-mutating
 
 #### Screen-based Architecture
 
@@ -174,9 +174,9 @@ Consider a typical app with multiple screens. You can structure your global stat
 
 ```swift
 struct AppState {
-  @NonMutatingSet var homeScreen: HomeScreenState = HomeScreenState()
-  @NonMutatingSet var profileScreen: ProfileScreenState = ProfileScreenState()
-  @NonMutatingSet var settingsScreen: SettingsScreenState = SettingsScreenState()
+  @Independent var homeScreen: HomeScreenState = HomeScreenState()
+  @Independent var profileScreen: ProfileScreenState = ProfileScreenState()
+  @Independent var settingsScreen: SettingsScreenState = SettingsScreenState()
   
   // Global app data that affects all screens
   var user: User? = nil
@@ -193,7 +193,7 @@ struct ProfileScreenState {
   var userProfile: UserProfile? = nil
   var isEditing: Bool = false
   var avatarImage: UIImage? = nil
-  @NonMutatingSet var recentActivities: [Activity] = []
+  @Independent var recentActivities: [Activity] = []
 }
 
 struct SettingsScreenState {
