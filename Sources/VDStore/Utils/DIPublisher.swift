@@ -7,9 +7,9 @@ struct DIPublisher<Base: Publisher>: Publisher {
 	typealias Failure = Base.Failure
 
 	let base: Base
-	let values: (StoreDIValues) -> StoreDIValues
+	let values: (DIValues) -> DIValues
 
-	init(base: Base, modifier: @escaping (StoreDIValues) -> StoreDIValues) {
+	init(base: Base, modifier: @escaping (DIValues) -> DIValues) {
 		self.base = base
 		values = modifier
 	}
@@ -25,7 +25,7 @@ struct DISubscriber<Base: Subscriber>: Subscriber {
 	typealias Failure = Base.Failure
 
 	let base: Base
-	let values: (StoreDIValues) -> StoreDIValues
+	let values: (DIValues) -> DIValues
 
 	var combineIdentifier: CombineIdentifier { base.combineIdentifier }
 
@@ -48,7 +48,7 @@ struct DISubscriber<Base: Subscriber>: Subscriber {
 	}
 
 	func execute<T>(_ operation: () -> T) -> T {
-		StoreDIValues.$current.withValue(values) {
+		DIValues.$current.withValue(values) {
 			operation()
 		}
 	}

@@ -1,32 +1,48 @@
 import Foundation
 
 /// The storage of injected dependencies.
-public struct StoreDIValues {
+public struct DIValues: @unchecked Sendable {
 
-	@TaskLocal public static var current = StoreDIValues()
+	@TaskLocal public static var current = DIValues()
 
-	typealias Key = PartialKeyPath<StoreDIValues>
+	typealias Key = PartialKeyPath<DIValues>
 
-	private let storage = Storage()
-	private var dependencies: [Key: Any] = [:]
+	private static let storage = Storage()
+	private var overrides: [Key: Any] = [:]
 
 	/// Creates an empty storage.
 	public init() {}
 
 	/// Returns the stored dependency by its key path.
 	public func get<DIValue>(
-		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
+		_ keyPath: WritableKeyPath<DIValues, DIValue>,
 		or value: @autoclosure () -> DIValue
 	) -> DIValue {
-		(dependencies[keyPath] as? DIValue) ?? storage.value(for: keyPath, default: value())
+		(overrides[keyPath] as? DIValue) ?? Self.storage.value(for: keyPath, default: value())
 	}
 
 	/// Modify the stored dependency by its key path.
 	public mutating func set<DIValue>(
-		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
+		_ keyPath: WritableKeyPath<DIValues, DIValue>,
 		_ value: DIValue
 	) {
-		dependencies[keyPath] = value
+		overrides[keyPath] = value
+	}
+
+	/// Removes the stored dependency by its key path.
+	public mutating func remove<DIValue>(
+		_ keyPath: WritableKeyPath<DIValues, DIValue>
+	) {
+		overrides.removeValue(forKey: keyPath)
+	}
+
+	/// Returns a new storage with the stored dependency by its key path.
+	public mutating func removing<DIValue>(
+		_ keyPath: WritableKeyPath<DIValues, DIValue>
+	) -> DIValues {
+		var new = self
+		new.remove(keyPath)
+		return new
 	}
 
 	/// Injects the given value into the storage.
@@ -35,9 +51,9 @@ public struct StoreDIValues {
 	///  - value: The value to inject.
 	/// - Returns: A new storage with the injected value.
 	public func with<DIValue>(
-		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
+		_ keyPath: WritableKeyPath<DIValues, DIValue>,
 		_ value: DIValue
-	) -> StoreDIValues {
+	) -> DIValues {
 		var new = self
 		new[keyPath: keyPath] = value
 		return new
@@ -49,9 +65,9 @@ public struct StoreDIValues {
 	///  - transform: A closure that transforms the value.
 	/// - Returns: A new storage with the transformed value.
 	public func transform<DIValue>(
-		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
+		_ keyPath: WritableKeyPath<DIValues, DIValue>,
 		_ transform: (inout DIValue) -> Void
-	) -> StoreDIValues {
+	) -> DIValues {
 		var value = self[keyPath: keyPath]
 		transform(&value)
 		return with(keyPath, value)
@@ -62,18 +78,54 @@ public struct StoreDIValues {
 	///  - dependencies: The dependencies to merge with.
 	/// - Returns: A new storage with the merged dependencies.
 	/// - Note: The given dependencies have higher priority than the stored ones.
-	public func merging(with dependencies: StoreDIValues) -> StoreDIValues {
+	public func merging(with dependencies: DIValues) -> DIValues {
 		var new = self
-		new.dependencies.merge(dependencies.dependencies) { _, new in new }
+		new.overrides.merge(dependencies.overrides) { _, new in new }
 		return new
+	}
+
+	public static func override<T>(
+		default keyPath: KeyPath<DIValues, T>,
+		_ value: @autoclosure () -> T
+	) {
+		Self.storage.modify {
+			$0[keyPath] = value()
+		}
+	}
+
+	public static func override(
+		defaults: DIValues
+	) {
+		Self.storage.modify {
+			$0.merge(defaults.overrides) { _, new in
+				new
+			}
+		}
+	}
+
+	public static func remove<T>(default keyPath: KeyPath<DIValues, T>) {
+		Self.storage.modify {
+			$0.removeValue(forKey: keyPath)
+		}
+	}
+
+	public static func removeDefaults() {
+		Self.storage.modify { $0.removeAll(keepingCapacity: true) }
 	}
 }
 
-extension StoreDIValues {
+extension DIValues {
 
 	final class Storage {
+
 		private var cache: [Key: Any] = [:]
 		private let lock = NSRecursiveLock()
+	
+		func modify(_ modify: (inout [Key: Any]) -> Void) {
+			lock.lock()
+			defer { lock.unlock() }
+			modify(&cache)
+		}
 
 		func value<DIValue>(for key: Key, default: @autoclosure () -> DIValue) -> DIValue {
 			lock.lock()
@@ -88,13 +140,13 @@ extension StoreDIValues {
 	}
 }
 
-public extension TaskLocal<StoreDIValues> {
+public extension TaskLocal<DIValues> {
 
-	func withValue<Result>(_ value: (StoreDIValues) -> StoreDIValues, operation: () throws -> Result) rethrows -> Result {
+	func withValue<Result>(_ value: (DIValues) -> DIValues, operation: () throws -> Result) rethrows -> Result {
 		try withValue(value(wrappedValue), operation: operation)
 	}
 
-	func withValue<Result>(_ value: (StoreDIValues) -> StoreDIValues, operation: () async throws -> Result) async rethrows -> Result {
+	func withValue<Result>(_ value: (DIValues) -> DIValues, operation: () async throws -> Result) async rethrows -> Result {
 		try await withValue(value(wrappedValue), operation: operation)
 	}
 }

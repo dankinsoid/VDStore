@@ -13,8 +13,8 @@ struct VDStoreMacrosPlugin: CompilerPlugin {
 	let providingMacros: [Macro.Type] = [
 		ActionsMacro.self,
 		CancelInFlightMacro.self,
-		StoreDIValueMacro.self,
-		StoreDIValuesMacro.self,
+		DIMacro.self,
+		DIValues.self,
 	]
 }
 #endif

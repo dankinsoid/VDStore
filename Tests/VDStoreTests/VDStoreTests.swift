@@ -2,7 +2,6 @@ import Combine
 @testable import VDStore
 import XCTest
 
-@MainActor
 final class VDStoreTests: XCTestCase {
 
 	/// Test that initializing a Store with a given state sets the initial state correctly.
@@ -49,7 +48,7 @@ final class VDStoreTests: XCTestCase {
 	func testThreadSafety() async {
 		let store = Store(Counter())
 		let isMainThread = await Task.detached {
-			await store.check {
+			store.check {
 				Thread.isMainThread
 			}
 		}.value
@@ -651,7 +650,7 @@ protocol SomeService: AnyObject {}
 /// Mock di for testing purposes
 class MockSomeService: SomeService {}
 
-extension StoreDIValues {
+extension DIValues {
 
 	var someService: SomeService {
 		get { get(\.someService, or: MockSomeService()) }

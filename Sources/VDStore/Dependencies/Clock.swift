@@ -1,6 +1,6 @@
 #if canImport(RegexBuilder) || !os(macOS) && !targetEnvironment(macCatalyst)
 @available(iOS 16, macOS 13, tvOS 16, watchOS 9, *)
-public extension StoreDIValues {
+public extension DIValues {
 
 	/// The current clock that features should use when a `ContinuousClock` would be appropriate.
 	///

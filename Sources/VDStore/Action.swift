@@ -7,11 +7,11 @@ public extension Store {
 
 		public let id: StoreActionID
 		public var name: String { id.name }
-		let action: @Sendable @MainActor (Store<State>, Args) -> Res
+		let action: @Sendable (Store<State>, Args) -> Res
 
 		public init(
 			id: StoreActionID,
-			action: @escaping @Sendable @MainActor (Store<State>, Args) -> Res
+			action: @escaping @Sendable (Store<State>, Args) -> Res
 		) {
 			self.id = id
 			self.action = action
@@ -49,7 +49,7 @@ public extension Store.Action {
 
 	init(
 		id: StoreActionID,
-		action: @escaping (Store<State>) -> @MainActor (Args) -> Res
+		action: @escaping (Store<State>) -> (Args) -> Res
 	) {
 		self.init(id: id) { store, args in
 			store.update {
@@ -61,7 +61,7 @@ public extension Store.Action {
 	init<T>(
 		id: StoreActionID,
 		cancelInFlight: Bool = false,
-		action: @escaping @Sendable (Store<State>) -> @MainActor (Args) async -> T
+		action: @escaping @Sendable (Store<State>) -> (Args) async -> T
 	) where Res == Task<T, Never> {
 		self.init(id: id) { store, args in
 			store.task(id: id, cancelInFlight: cancelInFlight) {
@@ -73,7 +73,7 @@ public extension Store.Action {
 	init<T>(
 		id: StoreActionID,
 		cancelInFlight: Bool = false,
-		action: @escaping @Sendable (Store<State>) -> @MainActor (Args) async throws -> T
+		action: @escaping @Sendable (Store<State>) -> (Args) async throws -> T
 	) where Res == Task<T, Error> {
 		self.init(id: id) { store, args in
 			store.task(id: id, cancelInFlight: cancelInFlight) {
@@ -84,7 +84,7 @@ public extension Store.Action {
 
 	init<T>(
 		id: StoreActionID,
-		action: @escaping (Store<State>) -> @MainActor (Args) throws -> T
+		action: @escaping (Store<State>) -> (Args) throws -> T
 	) where Res == Result<T, Error> {
 		self.init(id: id) { store, args in
 			store.update {
@@ -124,7 +124,6 @@ public extension Store.Action {
 	}
 }
 
-@MainActor
 public extension Store {
 
 	/// Executes the given action through middlwares.
@@ -236,7 +235,7 @@ public extension Store {
 		file: String = #fileID,
 		line: UInt = #line,
 		from function: String = #function,
-		action: @MainActor @escaping () -> Res
+		action: @escaping () -> Res
 	) -> Res {
 		execute(
 			Action<Void, Res>(
@@ -258,7 +257,7 @@ public extension Store {
 		file: String = #fileID,
 		line: UInt = #line,
 		from function: String = #function,
-		action: @MainActor @escaping () throws -> Res
+		action: @escaping () throws -> Res
 	) throws -> Res {
 		try execute(
 			Action<Void, Result<Res, Error>>(
@@ -281,7 +280,7 @@ public extension Store {
 		line: UInt = #line,
 		from function: String = #function,
 		cancelInFlight: Bool = false,
-		action: @MainActor @escaping () async throws -> Res
+		action: @escaping () async throws -> Res
 	) async throws -> Res {
 		try await execute(
 			Action<Void, Task<Res, Error>>(
@@ -305,7 +304,7 @@ public extension Store {
 		line: UInt = #line,
 		from function: String = #function,
 		cancelInFlight: Bool = false,
-		action: @MainActor @escaping () async -> Res
+		action: @escaping () async -> Res
 	) async -> Res {
 		await execute(
 			Action<Void, Task<Res, Never>>(

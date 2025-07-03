@@ -109,7 +109,7 @@ private func expansion(
 	let actionBody = """
 	{ store in
 	    return {\(types.isEmpty ? " _ in" : "")
-	        let action: @MainActor (\(types))\(callSuffix) -> \(resultType) = store.\(funcDecl.name.text)
+	        let action: (\(types))\(callSuffix) -> \(resultType) = store.\(funcDecl.name.text)
 	        return \(callPrefix)action(\(args))
 	    }
 	}

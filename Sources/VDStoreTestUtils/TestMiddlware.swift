@@ -15,7 +15,7 @@ public final class TestMiddleware: StoreMiddleware {
 	public func execute<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Res
 	) -> Res {
 		didCallAction(context.actionID)
@@ -27,7 +27,7 @@ public final class TestMiddleware: StoreMiddleware {
 	public func executeThrows<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Throws.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Result<Res, Error>
 	) -> Result<Res, Error> {
 		didCallAction(context.actionID)
@@ -44,7 +44,7 @@ public final class TestMiddleware: StoreMiddleware {
 	public func executeAsync<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Async.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Task<Res, Never>
 	) -> Task<Res, Never> where Res: Sendable {
 		didCallAction(context.actionID)
@@ -59,7 +59,7 @@ public final class TestMiddleware: StoreMiddleware {
 	public func executeAsyncThrows<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.AsyncThrows.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Task<Res, Error>
 	) -> Task<Res, Error> where Res: Sendable {
 		didCallAction(context.actionID)

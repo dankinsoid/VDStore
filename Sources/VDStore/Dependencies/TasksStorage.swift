@@ -1,6 +1,6 @@
 import Foundation
 
-public extension StoreDIValues {
+public extension DIValues {
 
 	/// Returns the storage of async tasks. Allows to store and cancel tasks.
 	var tasksStorage: TasksStorage {
@@ -67,7 +67,6 @@ private protocol CancellableTask {
 
 extension Task: CancellableTask {}
 
-@MainActor
 public extension Store {
 
 	/// Create a throwing task with cancellation id.
@@ -80,7 +79,7 @@ public extension Store {
 	func task<T>(
 		id: AnyHashable,
 		cancelInFlight: Bool = false,
-		_ task: @MainActor @escaping () async throws -> T
+		_ task: @escaping () async throws -> T
 	) -> Task<T, Error> {
 		withDIValues {
 			Task(operation: task)
@@ -97,7 +96,7 @@ public extension Store {
 	func task<T>(
 		id: AnyHashable,
 		cancelInFlight: Bool = false,
-		_ task: @MainActor @escaping () async -> T
+		_ task: @escaping () async -> T
 	) -> Task<T, Never> {
 		withDIValues {
 			Task(operation: task)
@@ -130,7 +129,6 @@ public extension Task {
 	///   - id: The task's identifier.
 	///   - cancelInFlight: Determines if any in-flight tasks with the same identifier should be
 	///     canceled before starting this new one.
-	@MainActor
 	@discardableResult
 	func store(in storage: TasksStorage, id: AnyHashable, cancelInFlight: Bool = false) -> Task {
 		storage.add(for: id, self, cancelInFlight: cancelInFlight)

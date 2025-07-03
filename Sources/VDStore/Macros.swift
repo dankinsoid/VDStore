@@ -16,10 +16,10 @@ public macro CancelInFlight() = #externalMacro(module: "VDStoreMacros", type: "C
 /// Creates an store DI variable and adds getters and setters.
 /// The initial value of the variable becomes the default value.
 @attached(accessor, names: named(get), named(set))
-public macro StoreDIValue() = #externalMacro(module: "VDStoreMacros", type: "StoreDIValueMacro")
+public macro DI() = #externalMacro(module: "VDStoreMacros", type: "DIMacro")
 
-/// Applies the @StoreDIValue macro to each child in the scope.
-/// This should only be applied on an ``StoreDIValues`` extension.
+/// Applies the @DI macro to each child in the scope.
+/// This should only be applied on an ``DIValues`` extension.
 @attached(memberAttribute)
-public macro StoreDIValuesList() = #externalMacro(module: "VDStoreMacros", type: "StoreDIValuesMacro")
+public macro DIValues() = #externalMacro(module: "VDStoreMacros", type: "DIValues")
 #endif

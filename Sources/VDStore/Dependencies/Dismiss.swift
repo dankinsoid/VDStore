@@ -1,7 +1,7 @@
 #if canImport(UIKit)
 import UIKit
 
-public extension StoreDIValues {
+public extension DIValues {
 
 	var dismiss: () -> Void {
 		get { get(\.dismiss, or: _dismiss) }

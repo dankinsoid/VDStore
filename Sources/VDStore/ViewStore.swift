@@ -5,7 +5,7 @@ import SwiftUI
 /// `Store` wrapper for using in SwiftUI views. Updates the view when the state changes.
 /// It can be created with initial state value or with a given store.
 ///
-/// You can use `storeDIValues` `View`` modifiers to inject dependencies into the view stores.
+/// You can use `diTransform` `View`` modifiers to inject dependencies into the view stores.
 @available(iOS 14.0, macOS 11.00, tvOS 14.0, watchOS 7.0, *)
 @MainActor
 @propertyWrapper
@@ -13,7 +13,7 @@ import SwiftUI
 public struct ViewStore<State>: DynamicProperty {
 
 	private let property: Property
-	@Environment(\.storeDIValues) private var transformDI
+	@Environment(\.diTransform) private var transformDI
 
 	public var wrappedValue: State {
 		get { store.state }
@@ -96,7 +96,7 @@ public struct WithViewStore<State, Content: View>: View {
 	public let content: (Store<State>) -> Content
 	public var store: Store<State> { $state }
 	@ViewStore private var state: State
-	@Environment(\.storeDIValues) private var transformDI
+	@Environment(\.diTransform) private var transformDI
 
 	public init(_ store: Store<State>, @ViewBuilder content: @escaping (Store<State>) -> Content) {
 		self.content = content
@@ -108,7 +108,7 @@ public struct WithViewStore<State, Content: View>: View {
 	}
 }
 
-extension StoreDIValues {
+extension DIValues {
 
 	var isViewStore: Bool {
 		get { get(\.isViewStore, or: false) }
@@ -121,12 +121,39 @@ extension EnvironmentValues {
 
 	private enum DIValueKey: EnvironmentKey {
 
-		static let defaultValue: (StoreDIValues) -> StoreDIValues = { $0 }
+		static let defaultValue: (DIValues) -> DIValues = { $0 }
 	}
 
-	var storeDIValues: (StoreDIValues) -> StoreDIValues {
+	var diTransform: (DIValues) -> DIValues {
 		get { self[DIValueKey.self] }
 		set { self[DIValueKey.self] = newValue }
+	}
+
+	/// The current dependencies of the view.
+	public var di: DIValues {
+		diTransform(DIValues.current)
+	}
+
+	/// Injects the dependencies into the view stores.
+	public mutating func transformDI(_ transform: @escaping (DIValues) -> DIValues) {
+		let current = diTransform
+		diTransform = { [current] dependencies in
+			transform(current(dependencies))
+		}
+	}
+
+	/// Injects the dependencies into the view stores.
+	public mutating func setDI(_ dependencies: DIValues) {
+		transformDI {
+			$0.merging(with: dependencies)
+		}
+	}
+
+	/// Injects the dependencies into the view stores.
+	public mutating func setDI<D>(_ keyPath: WritableKeyPath<DIValues, D>, _ value: D) {
+		transformDI { deps in
+			deps.with(keyPath, value)
+		}
 	}
 }
 
@@ -146,8 +173,8 @@ public extension Store {
 public extension View {
 
 	/// Injects the dependencies into the view stores.
-	func storeDIValues(_ transform: @escaping (StoreDIValues) -> StoreDIValues) -> some View {
-		transformEnvironment(\.storeDIValues) { current in
+	func di(_ transform: @escaping (DIValues) -> DIValues) -> some View {
+		transformEnvironment(\.diTransform) { current in
 			current = { [current] dependencies in
 				transform(current(dependencies))
 			}
@@ -155,15 +182,15 @@ public extension View {
 	}
 
 	/// Injects the dependencies into the view stores.
-	func storeDIValues(_ dependencies: StoreDIValues) -> some View {
-		storeDIValues {
+	func di(_ dependencies: DIValues) -> some View {
+		di {
 			$0.merging(with: dependencies)
 		}
 	}
 
 	/// Injects the dependencies into the view stores.
-	func storeDIValue<D>(_ keyPath: WritableKeyPath<StoreDIValues, D>, _ value: D) -> some View {
-		storeDIValues { deps in
+	func di<D>(_ keyPath: WritableKeyPath<DIValues, D>, _ value: D) -> some View {
+		di { deps in
 			deps.with(keyPath, value)
 		}
 	}

@@ -8,7 +8,7 @@ public protocol StoreMiddleware {
 	func execute<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Res
 	) -> Res
 
@@ -16,7 +16,7 @@ public protocol StoreMiddleware {
 	func executeThrows<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Throws.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Result<Res, Error>
 	) -> Result<Res, Error>
 
@@ -24,7 +24,7 @@ public protocol StoreMiddleware {
 	func executeAsync<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Async.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Task<Res, Never>
 	) -> Task<Res, Never>
 
@@ -32,7 +32,7 @@ public protocol StoreMiddleware {
 	func executeAsyncThrows<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.AsyncThrows.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Task<Res, Error>
 	) -> Task<Res, Error>
 }
@@ -43,7 +43,7 @@ public extension StoreMiddleware {
 	func executeThrows<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Throws.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Result<Res, Error>
 	) -> Result<Res, Error> {
 		execute(args, context: context, dependencies: dependencies, next: next)
@@ -53,7 +53,7 @@ public extension StoreMiddleware {
 	func executeAsync<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Async.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Task<Res, Never>
 	) -> Task<Res, Never> {
 		execute(args, context: context, dependencies: dependencies, next: next)
@@ -63,7 +63,7 @@ public extension StoreMiddleware {
 	func executeAsyncThrows<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.AsyncThrows.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Task<Res, Error>
 	) -> Task<Res, Error> {
 		execute(args, context: context, dependencies: dependencies, next: next)
@@ -80,17 +80,17 @@ public extension Store {
 	}
 }
 
-public extension StoreDIValues {
+public extension DIValues {
 
 	/// Adds a middleware.
-	func middleware(_ middleware: StoreMiddleware) -> StoreDIValues {
+	func middleware(_ middleware: StoreMiddleware) -> DIValues {
 		transform(\.middlewares.middlewares) {
 			$0.append(middleware)
 		}
 	}
 }
 
-extension StoreDIValues {
+extension DIValues {
 
 	var middlewares: Middlewares {
 		get { get(\.middlewares, or: Middlewares()) }
@@ -105,7 +105,7 @@ struct Middlewares: StoreMiddleware {
 	func execute<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Res
 	) -> Res {
 		var call = next
@@ -121,7 +121,7 @@ struct Middlewares: StoreMiddleware {
 	func executeThrows<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Throws.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Result<Res, Error>
 	) -> Result<Res, Error> {
 		var call = next
@@ -137,7 +137,7 @@ struct Middlewares: StoreMiddleware {
 	func executeAsync<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.Async.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Task<Res, Never>
 	) -> Task<Res, Never> {
 		var call = next
@@ -153,7 +153,7 @@ struct Middlewares: StoreMiddleware {
 	func executeAsyncThrows<State, Args, Res>(
 		_ args: Args,
 		context: Store<State>.Action<Args, Res>.AsyncThrows.Context,
-		dependencies: StoreDIValues,
+		dependencies: DIValues,
 		next: (Args) -> Task<Res, Error>
 	) -> Task<Res, Error> {
 		var call = next

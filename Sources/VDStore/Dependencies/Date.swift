@@ -1,6 +1,6 @@
 import Foundation
 
-public extension StoreDIValues {
+public extension DIValues {
 
 	/// A dependency that returns the current date.
 	///
@@ -15,7 +15,7 @@ public extension StoreDIValues {
 
 /// A dependency that generates a date.
 ///
-/// See ``StoreDIValues/date`` for more information.
+/// See ``DIValues/date`` for more information.
 public struct DateGenerator: Sendable {
 
 	private var generate: @Sendable () -> Date

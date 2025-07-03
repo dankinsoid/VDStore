@@ -1,6 +1,6 @@
 import Combine
 
-extension StoreDIValues {
+extension DIValues {
 
 	var cancellableStorage: CancellableStorage {
 		get { get(\.cancellableStorage, or: .shared) }
@@ -8,13 +8,12 @@ extension StoreDIValues {
 	}
 
 	/// Stores cancellables for Combine subscriptions.
-	@MainActor public var cancellableSet: Set<AnyCancellable> {
+	public var cancellableSet: Set<AnyCancellable> {
 		get { cancellableStorage.set }
 		nonmutating set { cancellableStorage.set = newValue }
 	}
 }
 
-@MainActor
 final class CancellableStorage {
 
 	static nonisolated let shared = CancellableStorage()

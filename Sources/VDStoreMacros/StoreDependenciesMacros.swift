@@ -3,7 +3,7 @@ import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxMacros
 
-public struct StoreDIValueMacro: AccessorMacro {
+public struct DIMacro: AccessorMacro {
 
 	public static func expansion(
 		of node: AttributeSyntax,
@@ -13,7 +13,7 @@ public struct StoreDIValueMacro: AccessorMacro {
 
 		// Skip declarations other than variables
 		guard let varDecl = declaration.as(VariableDeclSyntax.self) else {
-			throw CustomError("@StoreDIValue only works on variables")
+			throw CustomError("@DI only works on variables")
 		}
 
 		guard var binding = varDecl.bindings.first?.as(PatternBindingSyntax.self) else {
@@ -46,7 +46,7 @@ public struct StoreDIValueMacro: AccessorMacro {
 	}
 }
 
-public struct StoreDIValuesMacro: MemberAttributeMacro {
+public struct DIValues: MemberAttributeMacro {
 
 	public static func expansion(
 		of node: AttributeSyntax,
@@ -61,7 +61,7 @@ public struct StoreDIValuesMacro: MemberAttributeMacro {
 			return []
 		}
 
-		return ["@StoreDIValue"]
+		return ["@DI"]
 	}
 }
 #endif

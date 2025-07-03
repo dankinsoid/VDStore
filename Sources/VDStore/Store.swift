@@ -82,21 +82,20 @@ import SwiftUI
 ///
 /// ### Thread safety
 ///
-/// The `Store` class is isolated to main actor by @MainActor attribute, but the thread safety is not guaranteed. All the state changes should be done on the main thread.
+/// The `Store` struct is not thread safe
 @propertyWrapper
 @dynamicMemberLookup
-@MainActor
 public struct Store<State> {
 
 	/// The state of the store.
-	@MainActor public var state: State {
+	public var state: State {
 		get { box.state }
 		nonmutating set { box.state = newValue }
 	}
 
 	/// Injected dependencies.
-	public nonisolated var di: StoreDIValues {
-		diModifier(StoreDIValues.current.with(store: self))
+	public var di: DIValues {
+		diModifier(DIValues.current.with(store: self))
 	}
 
 	/// A publisher that emits when state changes.
@@ -128,8 +127,8 @@ public struct Store<State> {
 	}
 
 	private nonisolated let box: StoreBox<State>
-	private nonisolated let _diModifier: (StoreDIValues) -> StoreDIValues
-	private nonisolated var diModifier: (StoreDIValues) -> StoreDIValues {
+	private nonisolated let _diModifier: (DIValues) -> DIValues
+	private nonisolated var diModifier: (DIValues) -> DIValues {
 		{ _diModifier($0.with(store: self)) }
 	}
 
@@ -160,7 +159,7 @@ public struct Store<State> {
 
 	init(
 		box: StoreBox<State>,
-		di: @escaping (StoreDIValues) -> StoreDIValues = { $0 }
+		di: @escaping (DIValues) -> DIValues = { $0 }
 	) {
 		self.box = box
 		_diModifier = di
@@ -420,11 +419,21 @@ public struct Store<State> {
 	///  - value: The value to inject.
 	/// - Returns: A new store with the injected value.
 	public func di<DIValue>(
-		_ keyPath: WritableKeyPath<StoreDIValues, DIValue>,
+		_ keyPath: WritableKeyPath<DIValues, DIValue>,
 		_ value: DIValue
 	) -> Store {
 		di {
 			$0.with(keyPath, value)
+		}
+	}
+
+	/// Injects the given value into the store's.
+	/// - Parameters:
+	///  - value: The value to inject.
+	/// - Returns: A new store with the injected values.
+	public func di(_ value: DIValues) -> Store {
+		di {
+			$0.merging(with: value)
 		}
 	}
 
@@ -433,7 +442,7 @@ public struct Store<State> {
 	///  - transform: A closure that transforms the store's dependencies.
 	/// - Returns: A new store with the transformed dependencies.
 	public func di(
-		_ transform: @escaping (StoreDIValues) -> StoreDIValues
+		_ transform: @escaping (DIValues) -> DIValues
 	) -> Store {
 		Store(box: box) { [_diModifier] in
 			transform(_diModifier($0))
@@ -445,7 +454,7 @@ public struct Store<State> {
 	///  - transform: A closure that transforms the store's dependencies.
 	/// - Returns: A new store with the transformed dependencies.
 	public func transformDI(
-		_ transform: @escaping (inout StoreDIValues) -> Void
+		_ transform: @escaping (inout DIValues) -> Void
 	) -> Store {
 		di {
 			var result = $0
@@ -455,7 +464,7 @@ public struct Store<State> {
 	}
 
 	/// Suspends the store from updating the UI until the block returns.
-	public func update<T>(_ update: @MainActor () throws -> T) rethrows -> T {
+	public func update<T>(_ update: () throws -> T) rethrows -> T {
 		box.startUpdate()
 		defer { box.endUpdate() }
 		return try withDIValues(operation: update)
@@ -468,11 +477,11 @@ public struct Store<State> {
 	}
 
 	public func withDIValues<T>(operation: () throws -> T) rethrows -> T {
-		try StoreDIValues.$current.withValue(diModifier, operation: operation)
+		try DIValues.$current.withValue(diModifier, operation: operation)
 	}
 
 	public func withDIValues<T>(operation: () async throws -> T) async rethrows -> T {
-		try await StoreDIValues.$current.withValue(diModifier, operation: operation)
+		try await DIValues.$current.withValue(diModifier, operation: operation)
 	}
 
 	func forceUpdate() {
@@ -502,7 +511,7 @@ public extension Store where State: MutableCollection {
 
 public var suspendAllSyncStoreUpdates = true
 
-public extension StoreDIValues {
+public extension DIValues {
 
 	private var stores: [ObjectIdentifier: Any] {
 		get { get(\.stores, or: [:]) }
@@ -517,7 +526,7 @@ public extension StoreDIValues {
 	/// Inject the given store as a dependency.
 	func with<T>(
 		store: Store<T>
-	) -> StoreDIValues {
+	) -> DIValues {
 		transform(\.stores) { stores in
 			stores[ObjectIdentifier(T.self)] = store
 		}

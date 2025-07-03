@@ -64,13 +64,14 @@ Example of integrating `VDStore` with a `UIViewController`:
 final class CounterViewController: UIViewController {
 
   @Store var state = Counter()
+  private var cancellableSet: Set<AnyCancellable> = []
 
   override func viewDidLoad() {
     super.viewDidLoad()
     $state.publisher.sink { [weak self] state in
       self?.render(with: state)
     }
-    .store(in: &$state.di.cancellableSet)
+    .store(in: &cancellableSet)
   }
 
   func tapAddButton() {
@@ -108,9 +109,9 @@ extension Store<Converter> {
 
 ### Adding Dependencies
 
-To define a dependency you should extend `StoreDIValues` with a computed property like this:
+To define a dependency you should extend `DIValues` with a computed property like this:
 ```swift
-extension StoreDIValues {
+extension DIValues {
 
    public var someService: SomeService {
       get { self[\.someService] ?? SomeService.shared }
@@ -120,15 +121,15 @@ extension StoreDIValues {
 ```
 Or you can use on of two macros:
 ```swift
-extension StoreDIValues {
+extension DIValues {
 
-   @StoreDIValue
+   @DI
    public var someService: SomeService = .shared
 }
 ```
 ```swift
-@StoreDIValuesList
-extension StoreDIValues {
+@DIValuesList
+extension DIValues {
 
    public var someService1: SomeService1 = .shared
    public var someService2: SomeService2 = .shared
@@ -148,9 +149,9 @@ store.di.someService.someMethod()
 ```
 There is `valueFor` global method that allows you to define default values depending on the environment: live, test or preview.
 ```swift
-extension StoreDIValues {
+extension DIValues {
 
-  @StoreDIValue
+  @DI
   public var someService: SomeService = valueFor(
 	live: SomeService.shared,
 	test: SomeServiceMock()

@@ -1,6 +1,6 @@
 import Foundation
 
-public extension StoreDIValues {
+public extension DIValues {
 
 	/// A dependency that generates UUIDs.
 	///
@@ -56,7 +56,7 @@ public extension StoreDIValues {
 
 /// A dependency that generates a UUID.
 ///
-/// See ``StoreDIValues/uuid`` for more information.
+/// See ``DIValues/uuid`` for more information.
 public struct UUIDGenerator: Sendable {
 	private let generate: @Sendable () -> UUID
 
