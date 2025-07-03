@@ -182,6 +182,15 @@ public extension View {
 	}
 
 	/// Injects the dependencies into the view stores.
+	func transformDI<D>(_ keyPath: WritableKeyPath<DIValues, D>, _ transform: @escaping (inout D) -> Void) -> some View {
+		di { current in
+			var value = current
+			transform(&value[keyPath: keyPath])
+			return value
+		}
+	}
+
+	/// Injects the dependencies into the view stores.
 	func di(_ dependencies: DIValues) -> some View {
 		di {
 			$0.merging(with: dependencies)
